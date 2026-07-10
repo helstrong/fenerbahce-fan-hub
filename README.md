@@ -6,9 +6,10 @@ table, squad stats and club news — all in one place, in club colours (navy `#0
 
 Built with **React + Vite + TypeScript + Tailwind CSS**.
 
-> ⚠️ **Demo data.** The app currently ships with *sample* fixtures, standings, player
-> stats and news for illustration only. They are not live and not guaranteed accurate.
-> See [Going live](#going-live) to connect a real data source.
+> ℹ️ **Data source.** Football data (results, fixtures, table, squad stats) comes from
+> **API-Football** when a key is configured, and falls back to *sample* data otherwise.
+> News is always sample content (football APIs don't carry news). See
+> [Live data](#live-data) to switch it on.
 
 ## Features
 
@@ -34,23 +35,53 @@ npm run preview   # preview the production build
 
 ```
 src/
-  components/   Layout, Crest, MatchCard, Card, Icon
-  data/         types.ts, seed.ts (sample data), api.ts (data access layer)
+  components/   Layout, Crest, MatchCard, Card, Icon, StatusView
+  data/         types.ts       shared domain types (incl. AppData)
+                config.ts      env-driven runtime config
+                seed.ts        sample data (fallback)
+                apiFootball.ts API-Football client + response mappers
+                api.ts         loadAll() + caching + selectors (single entry point)
+                DataContext.tsx React provider: load once, expose {state, refresh}
   lib/          formatting helpers
   pages/        Home, Fixtures, Standings, Squad, News
 ```
 
-## Going live
+Data flow: `DataProvider` calls `loadAll()` once on mount → each page receives the
+resulting `AppData` as a prop. Nothing else touches the network.
 
-Every screen reads through the functions in `src/data/api.ts` — nothing touches the
-raw data or the network directly. To go live, replace those function bodies with real
-API calls while keeping the return shapes in `src/data/types.ts`.
+## Live data
 
-Suggested source: **API-Football** (api-football.com) covers the Turkish Süper Lig —
-fixtures, standings, squads and player stats. News can come from a separate source
-(e.g. an RSS feed or NewsAPI). Put your API key in a `.env` file (already gitignored)
-and, ideally, proxy requests through a small serverless function so the key is never
-shipped to the browser.
+The app runs on sample data out of the box. To pull real Fenerbahçe data:
+
+1. Create a free account at **[API-Football](https://www.api-football.com/)** and copy your API key.
+2. Copy the env template and paste your key:
+   ```bash
+   cp .env.example .env
+   # edit .env and set VITE_API_FOOTBALL_KEY=your_key
+   ```
+3. Restart the dev server (`npm run dev`). The header badge switches to **“Live data.”**
+
+**Config** (all optional, defaults in `.env.example`):
+
+| Variable | Default | Meaning |
+| --- | --- | --- |
+| `VITE_API_FOOTBALL_KEY` | — | Your key. Empty = sample data. |
+| `VITE_LEAGUE_ID` | `203` | Süper Lig |
+| `VITE_SEASON` | `2023` | Season start year |
+| `VITE_TEAM_ID` | `611` | Fenerbahçe |
+
+Notes & limitations:
+
+- **Free tier covers seasons 2021–2023 only.** So the default season is `2023`
+  (the 2023–24 campaign), which is fully finished — meaning **no upcoming fixtures**.
+  For the current season and live upcoming games, use a paid plan and set `VITE_SEASON`.
+- Verify `VITE_LEAGUE_ID` / `VITE_TEAM_ID` against the API's `/leagues` and `/teams`
+  endpoints if the defaults ever change.
+- Responses are cached in `localStorage` for one hour to protect the daily quota; the
+  header refresh button forces a fresh fetch.
+- **Security:** `VITE_` vars are bundled into the browser, so the key ships to the
+  client. Fine for local/personal use — for a public deployment, proxy requests through
+  a small server function instead of exposing the key.
 
 ## Branding note
 

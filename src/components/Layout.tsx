@@ -11,7 +11,14 @@ const nav = [
   { to: '/news', label: 'News', icon: 'news', end: false },
 ]
 
-export default function Layout({ children }: { children: ReactNode }) {
+interface LayoutProps {
+  children: ReactNode
+  live?: boolean
+  onRefresh?: () => void
+  refreshing?: boolean
+}
+
+export default function Layout({ children, live = false, onRefresh, refreshing = false }: LayoutProps) {
   return (
     <div className="min-h-screen pb-20 md:pb-0">
       <header className="sticky top-0 z-20 bg-fener-navy text-white shadow-lg">
@@ -19,24 +26,52 @@ export default function Layout({ children }: { children: ReactNode }) {
           <Crest className="h-9 w-9" />
           <div className="flex flex-col leading-tight">
             <span className="text-base font-bold tracking-wide">Fenerbahçe Fan Hub</span>
-            <span className="text-[11px] text-fener-yellow">Since 1907 · Sample data</span>
+            <span className="text-[11px] text-fener-yellow">
+              Since 1907 · {live ? 'Live data' : 'Sample data'}
+            </span>
           </div>
-          <nav className="ml-auto hidden gap-1 md:flex">
-            {nav.map((n) => (
-              <NavLink
-                key={n.to}
-                to={n.to}
-                end={n.end}
-                className={({ isActive }) =>
-                  `rounded-lg px-3 py-2 text-sm font-medium transition ${
-                    isActive ? 'bg-fener-yellow text-fener-navy' : 'text-white/80 hover:bg-white/10'
-                  }`
-                }
+
+          <div className="ml-auto flex items-center gap-1">
+            <nav className="hidden gap-1 md:flex">
+              {nav.map((n) => (
+                <NavLink
+                  key={n.to}
+                  to={n.to}
+                  end={n.end}
+                  className={({ isActive }) =>
+                    `rounded-lg px-3 py-2 text-sm font-medium transition ${
+                      isActive ? 'bg-fener-yellow text-fener-navy' : 'text-white/80 hover:bg-white/10'
+                    }`
+                  }
+                >
+                  {n.label}
+                </NavLink>
+              ))}
+            </nav>
+
+            {onRefresh && (
+              <button
+                onClick={onRefresh}
+                disabled={refreshing}
+                title="Refresh data"
+                aria-label="Refresh data"
+                className="rounded-lg p-2 text-white/80 transition hover:bg-white/10 disabled:opacity-50"
               >
-                {n.label}
-              </NavLink>
-            ))}
-          </nav>
+                <svg
+                  className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`}
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M21 12a9 9 0 11-3-6.7L21 8" />
+                  <path d="M21 3v5h-5" />
+                </svg>
+              </button>
+            )}
+          </div>
         </div>
       </header>
 

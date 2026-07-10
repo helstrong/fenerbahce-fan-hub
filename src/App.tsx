@@ -1,21 +1,33 @@
-import { Routes, Route } from 'react-router-dom'
+import { Route, Routes } from 'react-router-dom'
 import Layout from './components/Layout'
-import Home from './pages/Home'
+import { ErrorView, LoadingView, WarningBanner } from './components/StatusView'
+import { useData } from './data/DataContext'
 import Fixtures from './pages/Fixtures'
-import Standings from './pages/Standings'
-import Squad from './pages/Squad'
+import Home from './pages/Home'
 import News from './pages/News'
+import Squad from './pages/Squad'
+import Standings from './pages/Standings'
 
 export default function App() {
+  const { state, refresh } = useData()
+  const data = state.data
+
   return (
-    <Layout>
-      <Routes>
-        <Route path="/" element={<Home />} />
-        <Route path="/fixtures" element={<Fixtures />} />
-        <Route path="/standings" element={<Standings />} />
-        <Route path="/squad" element={<Squad />} />
-        <Route path="/news" element={<News />} />
-      </Routes>
+    <Layout live={!!data?.live} onRefresh={refresh} refreshing={state.status === 'loading'}>
+      {state.status === 'loading' && !data && <LoadingView />}
+      {state.status === 'error' && <ErrorView message={state.error} onRetry={refresh} />}
+      {data && (
+        <>
+          <WarningBanner warnings={data.warnings} />
+          <Routes>
+            <Route path="/" element={<Home data={data} />} />
+            <Route path="/fixtures" element={<Fixtures data={data} />} />
+            <Route path="/standings" element={<Standings data={data} />} />
+            <Route path="/squad" element={<Squad data={data} />} />
+            <Route path="/news" element={<News data={data} />} />
+          </Routes>
+        </>
+      )}
     </Layout>
   )
 }

@@ -1,12 +1,11 @@
 import { useState } from 'react'
-import { getPlayers } from '../data/api'
-import type { Player } from '../data/types'
+import type { AppData, Player } from '../data/types'
 
 const filters = ['All', 'Goalkeeper', 'Defender', 'Midfielder', 'Forward'] as const
 
-export default function Squad() {
+export default function Squad({ data }: { data: AppData }) {
   const [pos, setPos] = useState<(typeof filters)[number]>('All')
-  const players = getPlayers().filter((p) => pos === 'All' || p.position === pos)
+  const players = data.players.filter((p) => pos === 'All' || p.position === pos)
 
   return (
     <div className="space-y-4">
@@ -26,27 +25,33 @@ export default function Squad() {
         ))}
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {players.map((p) => (
-          <PlayerCard key={p.id} player={p} />
-        ))}
-      </div>
+      {players.length ? (
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {players.map((p) => (
+            <PlayerCard key={p.id} player={p} />
+          ))}
+        </div>
+      ) : (
+        <p className="text-sm text-slate-400">No players to show.</p>
+      )}
     </div>
   )
 }
 
 function PlayerCard({ player }: { player: Player }) {
+  const meta = [player.position, player.nationality, player.age ? `${player.age}y` : null]
+    .filter(Boolean)
+    .join(' · ')
+
   return (
     <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition hover:shadow-md">
       <div className="flex items-center gap-3">
         <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-fener-navy text-lg font-bold text-fener-yellow">
-          {player.number}
+          {player.number || '–'}
         </span>
         <div className="min-w-0">
           <h3 className="truncate font-bold text-fener-navy">{player.name}</h3>
-          <p className="text-xs text-slate-500">
-            {player.position} · {player.nationality} · {player.age}y
-          </p>
+          <p className="truncate text-xs text-slate-500">{meta}</p>
         </div>
       </div>
 

@@ -1,23 +1,17 @@
 import { Link } from 'react-router-dom'
 import { Card, SectionTitle } from '../components/Card'
 import MatchCard from '../components/MatchCard'
-import {
-  FENER_ID,
-  getLastResult,
-  getNews,
-  getNextMatch,
-  getStandings,
-  getTopScorers,
-} from '../data/api'
+import { FENER_ID, lastResult, nextMatch, standingFor, topScorers } from '../data/api'
+import type { AppData } from '../data/types'
 import { fmtDate } from '../lib/format'
 
-export default function Home() {
-  const last = getLastResult()
-  const next = getNextMatch()
-  const standings = getStandings()
-  const scorers = getTopScorers(5)
-  const news = getNews().slice(0, 3)
-  const fener = standings.find((s) => s.team.id === FENER_ID)
+export default function Home({ data }: { data: AppData }) {
+  const last = lastResult(data)
+  const next = nextMatch(data)
+  const standings = data.standings
+  const scorers = topScorers(data, 5)
+  const news = data.news.slice(0, 3)
+  const fener = standingFor(data, FENER_ID)
 
   return (
     <div className="space-y-6">
@@ -25,21 +19,21 @@ export default function Home() {
         <p className="text-sm font-medium text-fener-yellow">Forza Fener 💛💙</p>
         <h1 className="text-2xl font-bold">Your club, all in one place</h1>
         <div className="mt-4 flex flex-wrap gap-3 text-sm">
-          <HeroStat label="League position" value={fener ? `#${fener.rank}` : '-'} />
-          <HeroStat label="Points" value={fener ? `${fener.points}` : '-'} />
-          <HeroStat label="Played" value={fener ? `${fener.played}` : '-'} />
-          <HeroStat label="Goals for" value={fener ? `${fener.gf}` : '-'} />
+          <HeroStat label="League position" value={fener ? `#${fener.rank}` : '–'} />
+          <HeroStat label="Points" value={fener ? `${fener.points}` : '–'} />
+          <HeroStat label="Played" value={fener ? `${fener.played}` : '–'} />
+          <HeroStat label="Goals for" value={fener ? `${fener.gf}` : '–'} />
         </div>
       </section>
 
       <div className="grid gap-4 md:grid-cols-2">
         <div>
           <SectionTitle>Last result</SectionTitle>
-          {last ? <MatchCard fixture={last} /> : <Empty />}
+          {last ? <MatchCard fixture={last} /> : <Empty label="No results yet" />}
         </div>
         <div>
           <SectionTitle>Next match</SectionTitle>
-          {next ? <MatchCard fixture={next} /> : <Empty />}
+          {next ? <MatchCard fixture={next} /> : <Empty label="No upcoming fixtures" />}
         </div>
       </div>
 
@@ -54,21 +48,25 @@ export default function Home() {
           >
             Table
           </SectionTitle>
-          <div className="space-y-1">
-            {standings.slice(0, 6).map((s) => (
-              <div
-                key={s.team.id}
-                className={`flex items-center gap-3 rounded-lg px-2 py-1.5 text-sm ${
-                  s.team.id === FENER_ID ? 'bg-fener-yellow/20 font-semibold text-fener-navy' : ''
-                }`}
-              >
-                <span className="w-4 text-slate-400">{s.rank}</span>
-                <span className="flex-1">{s.team.name}</span>
-                <span className="text-slate-400">{s.played}</span>
-                <span className="w-6 text-right font-bold">{s.points}</span>
-              </div>
-            ))}
-          </div>
+          {standings.length ? (
+            <div className="space-y-1">
+              {standings.slice(0, 6).map((s) => (
+                <div
+                  key={s.team.id}
+                  className={`flex items-center gap-3 rounded-lg px-2 py-1.5 text-sm ${
+                    s.team.id === FENER_ID ? 'bg-fener-yellow/20 font-semibold text-fener-navy' : ''
+                  }`}
+                >
+                  <span className="w-4 text-slate-400">{s.rank}</span>
+                  <span className="flex-1">{s.team.name}</span>
+                  <span className="text-slate-400">{s.played}</span>
+                  <span className="w-6 text-right font-bold">{s.points}</span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <Empty label="Table unavailable" />
+          )}
         </Card>
 
         <Card>
@@ -81,18 +79,22 @@ export default function Home() {
           >
             Top scorers
           </SectionTitle>
-          <div className="space-y-1">
-            {scorers.map((p) => (
-              <div key={p.id} className="flex items-center gap-3 rounded-lg px-2 py-1.5 text-sm">
-                <span className="flex h-7 w-7 items-center justify-center rounded-full bg-fener-navy text-[11px] font-bold text-fener-yellow">
-                  {p.number}
-                </span>
-                <span className="flex-1 font-medium">{p.name}</span>
-                <span className="hidden text-xs text-slate-400 sm:inline">{p.position}</span>
-                <span className="w-6 text-right font-bold text-fener-navy">{p.goals}</span>
-              </div>
-            ))}
-          </div>
+          {scorers.length ? (
+            <div className="space-y-1">
+              {scorers.map((p) => (
+                <div key={p.id} className="flex items-center gap-3 rounded-lg px-2 py-1.5 text-sm">
+                  <span className="flex h-7 w-7 items-center justify-center rounded-full bg-fener-navy text-[11px] font-bold text-fener-yellow">
+                    {p.number || '–'}
+                  </span>
+                  <span className="flex-1 font-medium">{p.name}</span>
+                  <span className="hidden text-xs text-slate-400 sm:inline">{p.position}</span>
+                  <span className="w-6 text-right font-bold text-fener-navy">{p.goals}</span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <Empty label="Squad unavailable" />
+          )}
         </Card>
       </div>
 
@@ -134,10 +136,10 @@ function HeroStat({ label, value }: { label: string; value: string }) {
   )
 }
 
-function Empty() {
+function Empty({ label }: { label: string }) {
   return (
     <div className="rounded-2xl border border-dashed border-slate-200 p-6 text-center text-sm text-slate-400">
-      No data available
+      {label}
     </div>
   )
 }

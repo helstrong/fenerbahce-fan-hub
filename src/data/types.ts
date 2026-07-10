@@ -52,3 +52,14 @@ export interface NewsItem {
   date: string
   category: string
 }
+
+// Everything the UI needs for one render, loaded together at app start.
+export interface AppData {
+  standings: Standing[]
+  results: Fixture[]
+  upcoming: Fixture[]
+  players: Player[]
+  news: NewsItem[]
+  live: boolean
+  warnings: string[]
+}

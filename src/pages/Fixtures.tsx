@@ -1,10 +1,10 @@
 import { useState } from 'react'
 import MatchCard from '../components/MatchCard'
-import { getResults, getUpcoming } from '../data/api'
+import type { AppData } from '../data/types'
 
-export default function Fixtures() {
+export default function Fixtures({ data }: { data: AppData }) {
   const [tab, setTab] = useState<'upcoming' | 'results'>('upcoming')
-  const list = tab === 'results' ? getResults() : getUpcoming()
+  const list = tab === 'results' ? data.results : data.upcoming
 
   return (
     <div className="space-y-4">
