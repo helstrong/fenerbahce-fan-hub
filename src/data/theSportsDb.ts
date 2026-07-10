@@ -1,19 +1,19 @@
-import { LEAGUE_ID, SEASON, SPORTSDB_BASE, SPORTSDB_KEY, TEAM_ID } from './config'
+import { LEAGUE_ID, SEASON, SPORTSDB_BASE, TEAM_ID } from './config'
 import type { ClubProfile, Fixture, FixtureStatus, Kit, Player, Position, Standing, Team } from './types'
 
 // Thin client for TheSportsDB (https://www.thesportsdb.com/), JSON API v1.
 // Each exported function maps a raw response into our own domain types so the
 // rest of the app never sees the provider's shape.
 //
-// The API key is part of the URL path (not a header). The free test key "123"
-// works without an account but is rate-limited and caps some lists (top-5
-// table, ~10 players, ~5 fixtures) and omits player match stats.
+// Requests go to the same-origin proxy (SPORTSDB_BASE); the server injects the
+// API key and forwards to TheSportsDB, so no key is ever present in the browser.
 
 async function request(path: string, params: Record<string, string | number>): Promise<any> {
-  const url = new URL(`${SPORTSDB_BASE}/${SPORTSDB_KEY}/${path}`)
-  for (const [key, value] of Object.entries(params)) url.searchParams.set(key, String(value))
+  const qs = new URLSearchParams()
+  for (const [key, value] of Object.entries(params)) qs.set(key, String(value))
+  const url = `${SPORTSDB_BASE}/${path}?${qs.toString()}`
 
-  const res = await fetch(url.toString())
+  const res = await fetch(url)
   if (!res.ok) throw new Error(`${path}: HTTP ${res.status}`)
   return res.json()
 }

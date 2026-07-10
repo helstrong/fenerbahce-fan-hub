@@ -26,10 +26,15 @@ Requires Node.js 18+.
 
 ```bash
 npm install       # install dependencies
+cp .env.example .env   # then set SPORTSDB_KEY (optional; defaults to the free "123")
 npm run dev       # start the dev server (http://localhost:5173)
 npm run build     # production build into dist/
-npm run preview   # preview the production build
+npm start         # run the production server (serves dist/ + the API proxy)
 ```
+
+The API key is a **server-side** value (`SPORTSDB_KEY`, no `VITE_` prefix), so it is
+never bundled into the browser. In dev the Vite proxy injects it; in production the
+Node server does. The browser only ever calls the same-origin path `/api/sportsdb/…`.
 
 ## Project structure
 
@@ -44,10 +49,13 @@ src/
                 DataContext.tsx React provider: load once, expose {state, refresh}
   lib/          formatting helpers
   pages/        Home, Fixtures, Standings, Squad, Club
+server/         index.js — prod server: serves dist/ + /api/sportsdb key-injecting proxy
+Dockerfile      multi-stage build → single container (build SPA, serve + proxy)
 ```
 
-Data flow: `DataProvider` calls `loadAll()` once on mount → each page receives the
-resulting `AppData` as a prop. Nothing else touches the network.
+Data flow: `DataProvider` calls `loadAll()` once on mount → most pages receive the
+resulting `AppData` as a prop; the Table/Fixtures pages additionally browse any season
+via `SeasonContext`. All network calls go through the same-origin `/api/sportsdb` proxy.
 
 ## Live data
 
@@ -66,7 +74,10 @@ cp .env.example .env
 
 | Variable | Default | Meaning |
 | --- | --- | --- |
-| `VITE_SPORTSDB_KEY` | `123` | TheSportsDB key. `123` is the free shared test key; a personal key (via their Patreon) raises rate limits. |
+| `SPORTSDB_KEY` | `123` | **Server-side** TheSportsDB key (never sent to the browser). `123` = free tier; a premium key removes limits. |
+| `SPORTSDB_UPSTREAM` | `https://www.thesportsdb.com` | Upstream host (server-side). |
+| `PORT` | `3000` | Port the production server listens on. |
+| `VITE_SPORTSDB_FREE_TIER` | `false` | Set `true` when using the free key so the UI shows tier-limit notes. |
 | `VITE_USE_SAMPLE` | — | Set `true` to force sample data. |
 | `VITE_LEAGUE_ID` | `4339` | Turkish Süper Lig |
 | `VITE_SEASON` | `2025-2026` | Season, `YYYY-YYYY` format |
@@ -85,9 +96,43 @@ labels these caps rather than faking data):
   one hour; the header refresh button forces a fresh fetch. If a fetch fails entirely,
   the app falls back to sample data with a warning.
 - Verify `VITE_LEAGUE_ID` / `VITE_TEAM_ID` on thesportsdb.com if the defaults change.
-- **Security:** `VITE_` vars are bundled into the browser, so any personal key ships to
-  the client. Fine for local/personal use — for a public deployment, proxy requests
-  through a small server function instead of exposing the key.
+- **Security:** the key lives only in `SPORTSDB_KEY` (server-side) and is injected by the
+  proxy, so it is never in the browser bundle. `VITE_`-prefixed vars *are* bundled, so
+  keep secrets out of them.
+
+## Deployment (Coolify / Docker)
+
+The app deploys as a **single container** that both serves the built SPA and runs the
+key-injecting proxy — nothing calls TheSportsDB directly from the browser.
+
+In Coolify:
+
+1. **New Resource → Application**, point it at this GitHub repo (branch of your choice).
+2. **Build pack: Dockerfile** (the included multi-stage `Dockerfile` builds the SPA and
+   produces a small runtime image). Coolify auto-detects it.
+3. **Environment variables** — set the secret (Coolify keeps it server-side; it is *not*
+   a `VITE_` var, so it never reaches the client):
+   ```
+   SPORTSDB_KEY=your_premium_key
+   ```
+   Optionally `PORT` (defaults to `3000`) and any `VITE_*` public overrides. Note: `VITE_*`
+   values are baked in at **build time**, so change them → redeploy.
+4. **Port:** the container listens on `3000` (`EXPOSE 3000`); set Coolify's port mapping to
+   match and enable HTTPS on your domain.
+5. Deploy. Coolify builds the image and serves it; the browser only ever hits
+   `/api/sportsdb/…` on your domain.
+
+Run the production image locally to sanity-check:
+
+```bash
+npm run build
+SPORTSDB_KEY=your_key npm start   # http://localhost:3000
+# or:  docker build -t fener . && docker run -p 3000:3000 -e SPORTSDB_KEY=your_key fener
+```
+
+**Note on public exposure:** a public proxy lets anyone using your site consume your
+key's quota (they still never see the key). The server caches upstream responses for
+10 minutes to blunt this; add rate-limiting in front (Coolify/Cloudflare) if needed.
 
 ## Branding note
 
@@ -95,6 +140,11 @@ The crest in this project is an **unofficial, stylised fan mark** (navy/yellow w
 the 1907 founding year), not the official Fenerbahçe SK emblem, which is a registered
 trademark. This is a personal/educational fan project and is not affiliated with or
 endorsed by the club.
+
+For this reason the site is **excluded from search indexes** — via an `X-Robots-Tag:
+noindex` response header (authoritative), a `<meta name="robots" content="noindex">`
+tag, and `robots.txt`. If the site were ever already indexed and you wanted it removed,
+temporarily relax the `robots.txt` block so crawlers can see the `noindex` signal.
 
 ## Licence
 
