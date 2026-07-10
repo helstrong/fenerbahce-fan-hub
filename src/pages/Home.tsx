@@ -1,28 +1,32 @@
 import { Link } from 'react-router-dom'
 import { Card, SectionTitle } from '../components/Card'
+import FormGuide from '../components/FormGuide'
 import MatchCard from '../components/MatchCard'
-import { FENER_ID, lastResult, nextMatch, standingFor, topScorers } from '../data/api'
+import TeamBadge from '../components/TeamBadge'
+import { FENER_ID, lastResult, nextMatch, standingFor } from '../data/api'
 import type { AppData } from '../data/types'
-import { fmtDate } from '../lib/format'
 
 export default function Home({ data }: { data: AppData }) {
   const last = lastResult(data)
   const next = nextMatch(data)
   const standings = data.standings
-  const scorers = topScorers(data, 5)
-  const news = data.news.slice(0, 3)
   const fener = standingFor(data, FENER_ID)
 
   return (
     <div className="space-y-6">
-      <section className="rounded-2xl bg-fener-navy p-5 text-white">
-        <p className="text-sm font-medium text-fener-yellow">Forza Fener 💛💙</p>
-        <h1 className="text-2xl font-bold">Your club, all in one place</h1>
-        <div className="mt-4 flex flex-wrap gap-3 text-sm">
-          <HeroStat label="League position" value={fener ? `#${fener.rank}` : '–'} />
-          <HeroStat label="Points" value={fener ? `${fener.points}` : '–'} />
-          <HeroStat label="Played" value={fener ? `${fener.played}` : '–'} />
-          <HeroStat label="Goals for" value={fener ? `${fener.gf}` : '–'} />
+      <section className="flex items-center gap-4 rounded-2xl bg-fener-navy p-5 text-white">
+        {data.club?.badge && (
+          <img src={data.club.badge} alt="" className="hidden h-16 w-16 shrink-0 object-contain sm:block" />
+        )}
+        <div>
+          <p className="text-sm font-medium text-fener-yellow">Forza Fener 💛💙</p>
+          <h1 className="text-2xl font-bold">Your club, all in one place</h1>
+          <div className="mt-4 flex flex-wrap gap-3 text-sm">
+            <HeroStat label="League position" value={fener ? `#${fener.rank}` : '–'} />
+            <HeroStat label="Points" value={fener ? `${fener.points}` : '–'} />
+            <HeroStat label="Played" value={fener ? `${fener.played}` : '–'} />
+            <HeroStat label="Goals for" value={fener ? `${fener.gf}` : '–'} />
+          </div>
         </div>
       </section>
 
@@ -58,7 +62,8 @@ export default function Home({ data }: { data: AppData }) {
                   }`}
                 >
                   <span className="w-4 text-slate-400">{s.rank}</span>
-                  <span className="flex-1">{s.team.name}</span>
+                  <TeamBadge team={s.team} size={20} highlight={s.team.id === FENER_ID} />
+                  <span className="flex-1 truncate">{s.team.name}</span>
                   <span className="text-slate-400">{s.played}</span>
                   <span className="w-6 text-right font-bold">{s.points}</span>
                 </div>
@@ -72,56 +77,37 @@ export default function Home({ data }: { data: AppData }) {
         <Card>
           <SectionTitle
             action={
-              <Link to="/squad" className="text-xs font-semibold text-fener-navy">
-                Squad →
+              <Link to="/club" className="text-xs font-semibold text-fener-navy">
+                Club →
               </Link>
             }
           >
-            Top scorers
+            Form &amp; record
           </SectionTitle>
-          {scorers.length ? (
-            <div className="space-y-1">
-              {scorers.map((p) => (
-                <div key={p.id} className="flex items-center gap-3 rounded-lg px-2 py-1.5 text-sm">
-                  <span className="flex h-7 w-7 items-center justify-center rounded-full bg-fener-navy text-[11px] font-bold text-fener-yellow">
-                    {p.number || '–'}
-                  </span>
-                  <span className="flex-1 font-medium">{p.name}</span>
-                  <span className="hidden text-xs text-slate-400 sm:inline">{p.position}</span>
-                  <span className="w-6 text-right font-bold text-fener-navy">{p.goals}</span>
-                </div>
-              ))}
+          {fener ? (
+            <div className="space-y-4">
+              <div>
+                <p className="mb-1.5 text-xs uppercase tracking-wide text-slate-400">Last 5</p>
+                <FormGuide form={fener.form} />
+              </div>
+              <div className="grid grid-cols-3 gap-2 text-center">
+                <Record label="Won" value={fener.won} />
+                <Record label="Drawn" value={fener.drawn} />
+                <Record label="Lost" value={fener.lost} />
+              </div>
+              <p className="text-xs text-slate-400">
+                Goal difference{' '}
+                <span className="font-semibold text-fener-navy">
+                  {fener.gf - fener.ga >= 0 ? '+' : ''}
+                  {fener.gf - fener.ga}
+                </span>{' '}
+                ({fener.gf} for, {fener.ga} against)
+              </p>
             </div>
           ) : (
-            <Empty label="Squad unavailable" />
+            <Empty label="Form unavailable" />
           )}
         </Card>
-      </div>
-
-      <div>
-        <SectionTitle
-          action={
-            <Link to="/news" className="text-xs font-semibold text-fener-navy">
-              All news →
-            </Link>
-          }
-        >
-          Latest news
-        </SectionTitle>
-        <div className="grid gap-3 md:grid-cols-3">
-          {news.map((n) => (
-            <Card key={n.id}>
-              <span className="text-[11px] font-semibold uppercase tracking-wide text-fener-yellow-dark">
-                {n.category}
-              </span>
-              <h3 className="mt-1 text-sm font-bold text-fener-navy">{n.title}</h3>
-              <p className="mt-1 text-xs text-slate-500">{n.summary}</p>
-              <p className="mt-2 text-[11px] text-slate-400">
-                {n.source} · {fmtDate(n.date)}
-              </p>
-            </Card>
-          ))}
-        </div>
       </div>
     </div>
   )
@@ -132,6 +118,15 @@ function HeroStat({ label, value }: { label: string; value: string }) {
     <div className="rounded-xl bg-white/10 px-4 py-2">
       <div className="text-xl font-bold">{value}</div>
       <div className="text-[11px] text-white/70">{label}</div>
+    </div>
+  )
+}
+
+function Record({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="rounded-lg bg-slate-50 py-2">
+      <div className="text-lg font-bold text-fener-navy">{value}</div>
+      <div className="text-[10px] uppercase tracking-wide text-slate-400">{label}</div>
     </div>
   )
 }

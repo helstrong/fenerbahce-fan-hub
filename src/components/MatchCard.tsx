@@ -1,6 +1,7 @@
 import { FENER_ID } from '../data/api'
-import type { Fixture } from '../data/types'
+import type { Fixture, Team } from '../data/types'
 import { fmtDateTime } from '../lib/format'
+import TeamBadge from './TeamBadge'
 
 export default function MatchCard({ fixture }: { fixture: Fixture }) {
   const finished = fixture.status === 'finished'
@@ -28,7 +29,7 @@ export default function MatchCard({ fixture }: { fixture: Fixture }) {
       </div>
 
       <div className="flex items-center justify-between gap-2">
-        <TeamSide name={fixture.home.name} short={fixture.home.short} highlight={fenerHome} />
+        <TeamSide team={fixture.home} highlight={fenerHome} />
         <div className="shrink-0">
           {finished ? (
             <span className="rounded-lg bg-fener-navy px-3 py-1 text-lg font-bold text-white">
@@ -40,14 +41,18 @@ export default function MatchCard({ fixture }: { fixture: Fixture }) {
             </span>
           )}
         </div>
-        <TeamSide name={fixture.away.name} short={fixture.away.short} highlight={!fenerHome} right />
+        <TeamSide team={fixture.away} highlight={!fenerHome} right />
       </div>
 
       <div className="mt-3 flex items-center justify-between text-xs text-slate-500">
-        <span>{fixture.venue}</span>
+        <span className="truncate">
+          {fixture.round ? `Round ${fixture.round}` : ''}
+          {fixture.round && fixture.venue ? ' · ' : ''}
+          {fixture.venue}
+        </span>
         {result && (
           <span
-            className={`flex h-5 w-5 items-center justify-center rounded-full text-[11px] font-bold text-white ${resultColor}`}
+            className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[11px] font-bold text-white ${resultColor}`}
             title={result === 'W' ? 'Win' : result === 'L' ? 'Loss' : 'Draw'}
           >
             {result}
@@ -58,28 +63,12 @@ export default function MatchCard({ fixture }: { fixture: Fixture }) {
   )
 }
 
-function TeamSide({
-  name,
-  short,
-  highlight,
-  right,
-}: {
-  name: string
-  short: string
-  highlight?: boolean
-  right?: boolean
-}) {
+function TeamSide({ team, highlight, right }: { team: Team; highlight?: boolean; right?: boolean }) {
   return (
     <div className={`flex flex-1 items-center gap-2 ${right ? 'flex-row-reverse text-right' : ''}`}>
-      <span
-        className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[11px] font-bold ${
-          highlight ? 'bg-fener-navy text-fener-yellow' : 'bg-slate-100 text-slate-600'
-        }`}
-      >
-        {short}
-      </span>
+      <TeamBadge team={team} size={32} highlight={highlight} />
       <span className={`text-sm font-semibold ${highlight ? 'text-fener-navy' : 'text-slate-700'}`}>
-        {name}
+        {team.name}
       </span>
     </div>
   )

@@ -3,8 +3,8 @@ import Layout from './components/Layout'
 import { ErrorView, LoadingView, WarningBanner } from './components/StatusView'
 import { useData } from './data/DataContext'
 import Fixtures from './pages/Fixtures'
+import Club from './pages/Club'
 import Home from './pages/Home'
-import News from './pages/News'
 import Squad from './pages/Squad'
 import Standings from './pages/Standings'
 
@@ -21,10 +21,10 @@ export default function App() {
           <WarningBanner warnings={data.warnings} />
           <Routes>
             <Route path="/" element={<Home data={data} />} />
-            <Route path="/fixtures" element={<Fixtures data={data} />} />
-            <Route path="/standings" element={<Standings data={data} />} />
+            <Route path="/fixtures" element={<Fixtures />} />
+            <Route path="/standings" element={<Standings />} />
             <Route path="/squad" element={<Squad data={data} />} />
-            <Route path="/news" element={<News data={data} />} />
+            <Route path="/club" element={<Club data={data} />} />
           </Routes>
         </>
       )}
