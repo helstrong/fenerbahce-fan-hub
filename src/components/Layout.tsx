@@ -16,14 +16,19 @@ interface LayoutProps {
   live?: boolean
   onRefresh?: () => void
   refreshing?: boolean
+  badge?: string
 }
 
-export default function Layout({ children, live = false, onRefresh, refreshing = false }: LayoutProps) {
+export default function Layout({ children, live = false, onRefresh, refreshing = false, badge }: LayoutProps) {
   return (
     <div className="min-h-screen pb-20 md:pb-0">
       <header className="sticky top-0 z-20 bg-fener-navy text-white shadow-lg">
         <div className="mx-auto flex max-w-5xl items-center gap-3 px-4 py-3">
-          <Crest className="h-9 w-9" />
+          {badge ? (
+            <img src={badge} alt="Fenerbahçe crest" className="h-9 w-9 shrink-0 object-contain" />
+          ) : (
+            <Crest className="h-9 w-9" />
+          )}
           <div className="flex flex-col leading-tight">
             <span className="text-base font-bold tracking-wide">Fenerbahçe Fan Hub</span>
             <span className="text-[11px] text-fener-yellow">

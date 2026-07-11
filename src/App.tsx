@@ -13,7 +13,7 @@ export default function App() {
   const data = state.data
 
   return (
-    <Layout live={!!data?.live} onRefresh={refresh} refreshing={state.status === 'loading'}>
+    <Layout live={!!data?.live} onRefresh={refresh} refreshing={state.status === 'loading'} badge={data?.club?.badge}>
       {state.status === 'loading' && !data && <LoadingView />}
       {state.status === 'error' && <ErrorView message={state.error} onRetry={refresh} />}
       {data && (
