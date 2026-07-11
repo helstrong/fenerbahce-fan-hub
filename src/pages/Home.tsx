@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
 import { Card, SectionTitle } from '../components/Card'
+import Crest from '../components/Crest'
 import FormGuide from '../components/FormGuide'
 import MatchCard from '../components/MatchCard'
 import TeamBadge from '../components/TeamBadge'
@@ -14,19 +15,23 @@ export default function Home({ data }: { data: AppData }) {
 
   return (
     <div className="space-y-6">
-      <section className="flex items-center gap-4 rounded-2xl bg-fener-navy p-5 text-white">
-        {data.club?.badge && (
-          <img src={data.club.badge} alt="" className="hidden h-16 w-16 shrink-0 object-contain sm:block" />
-        )}
-        <div>
-          <p className="text-sm font-medium text-fener-yellow">Forza Fener 💛💙</p>
-          <h1 className="text-2xl font-bold">Your club, all in one place</h1>
-          <div className="mt-4 flex flex-wrap gap-3 text-sm">
-            <HeroStat label="League position" value={fener ? `#${fener.rank}` : '–'} />
-            <HeroStat label="Points" value={fener ? `${fener.points}` : '–'} />
-            <HeroStat label="Played" value={fener ? `${fener.played}` : '–'} />
-            <HeroStat label="Goals for" value={fener ? `${fener.gf}` : '–'} />
+      <section className="flex flex-col gap-5 rounded-2xl bg-fener-navy p-5 text-white md:flex-row md:items-center">
+        <div className="flex items-center gap-4">
+          {data.club?.badge ? (
+            <img src={data.club.badge} alt={`${data.club.name} crest`} className="h-16 w-16 shrink-0 object-contain" />
+          ) : (
+            <Crest className="h-16 w-16 shrink-0" />
+          )}
+          <div>
+            <p className="text-sm font-medium text-fener-yellow">Forza Fener 💛💙</p>
+            <h1 className="text-2xl font-bold">Your club, all in one place</h1>
           </div>
+        </div>
+        <div className="flex flex-wrap gap-3 md:ml-auto">
+          <HeroStat label="League position" value={fener ? `#${fener.rank}` : '–'} />
+          <HeroStat label="Points" value={fener ? `${fener.points}` : '–'} />
+          <HeroStat label="Played" value={fener ? `${fener.played}` : '–'} />
+          <HeroStat label="Goals for" value={fener ? `${fener.gf}` : '–'} />
         </div>
       </section>
 
@@ -115,9 +120,9 @@ export default function Home({ data }: { data: AppData }) {
 
 function HeroStat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-xl bg-white/10 px-4 py-2">
-      <div className="text-xl font-bold">{value}</div>
-      <div className="text-[11px] text-white/70">{label}</div>
+    <div className="min-w-[84px] rounded-xl bg-white/10 px-4 py-2.5 text-center">
+      <div className="text-2xl font-bold leading-tight">{value}</div>
+      <div className="mt-0.5 text-[11px] text-white/70">{label}</div>
     </div>
   )
 }
