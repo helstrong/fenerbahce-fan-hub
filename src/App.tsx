@@ -5,6 +5,7 @@ import { useData } from './data/DataContext'
 import Fixtures from './pages/Fixtures'
 import Club from './pages/Club'
 import Home from './pages/Home'
+import News from './pages/News'
 import Squad from './pages/Squad'
 import Standings from './pages/Standings'
 
@@ -25,6 +26,7 @@ export default function App() {
             <Route path="/standings" element={<Standings />} />
             <Route path="/squad" element={<Squad data={data} />} />
             <Route path="/club" element={<Club data={data} />} />
+            <Route path="/news" element={<News data={data} />} />
           </Routes>
         </>
       )}

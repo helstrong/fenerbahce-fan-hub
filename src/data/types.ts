@@ -82,6 +82,14 @@ export interface Kit {
   image: string
 }
 
+// From a curated, trusted-source-filtered news feed — see server/news.js.
+export interface NewsItem {
+  title: string
+  link: string
+  source: string
+  publishedAt: string | null // ISO date-time
+}
+
 // Everything the UI needs for one render, loaded together at app start.
 export interface AppData {
   club?: ClubProfile
@@ -90,6 +98,7 @@ export interface AppData {
   upcoming: Fixture[]
   players: Player[]
   kits: Kit[]
+  news: NewsItem[]
   live: boolean
   warnings: string[]
 }

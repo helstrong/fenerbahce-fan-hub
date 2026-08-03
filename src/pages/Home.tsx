@@ -10,6 +10,7 @@ import { FENER_ID, lastResult, nextMatch, standingFor } from '../data/api'
 import type { KnockoutStage } from '../data/api'
 import { useSeason, useSelectedCompetition } from '../data/SeasonContext'
 import type { AppData } from '../data/types'
+import { fmtDate } from '../lib/format'
 
 export default function Home({ data }: { data: AppData }) {
   const last = lastResult(data)
@@ -153,6 +154,33 @@ export default function Home({ data }: { data: AppData }) {
           )}
         </Card>
       </div>
+
+      {data.news.length > 0 && (
+        <div>
+          <SectionTitle
+            action={
+              <Link to="/news" className="text-xs font-semibold text-fener-navy">
+                All news →
+              </Link>
+            }
+          >
+            Latest news
+          </SectionTitle>
+          <div className="grid gap-3 md:grid-cols-3">
+            {data.news.slice(0, 3).map((n) => (
+              <a key={n.link} href={n.link} target="_blank" rel="noopener noreferrer">
+                <Card className="h-full transition hover:shadow-md">
+                  <h3 className="text-sm font-bold text-fener-navy">{n.title}</h3>
+                  <p className="mt-2 text-[11px] text-slate-400">
+                    {n.source}
+                    {n.publishedAt ? ` · ${fmtDate(n.publishedAt)}` : ''}
+                  </p>
+                </Card>
+              </a>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   )
 }

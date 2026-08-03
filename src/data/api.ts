@@ -11,10 +11,12 @@ import {
   roundLabel,
 } from './theSportsDb'
 import type { CompetitionStandings, KnockoutStage } from './theSportsDb'
+import { fetchNews } from './news'
 import {
   club as sampleClub,
   fixtures as sampleFixtures,
   kits as sampleKits,
+  news as sampleNews,
   players as samplePlayers,
   standings as sampleStandings,
 } from './seed'
@@ -41,6 +43,7 @@ function sampleData(): AppData {
     upcoming,
     players: samplePlayers,
     kits: sampleKits,
+    news: sampleNews,
     live: false,
     warnings: [],
   }
@@ -74,12 +77,13 @@ export async function loadAll(force = false): Promise<AppData> {
     if (cached) return cached
   }
 
-  const [club, standings, fixtures, players, kits] = await Promise.allSettled([
+  const [club, standings, fixtures, players, kits, news] = await Promise.allSettled([
     fetchClub(),
     fetchStandings(),
     fetchFixtures(),
     fetchPlayers(),
     fetchKits(),
+    fetchNews(),
   ])
 
   const warnings: string[] = []
@@ -89,6 +93,8 @@ export async function loadAll(force = false): Promise<AppData> {
     warnings.push(`Fixtures unavailable — ${String(fixtures.reason?.message ?? fixtures.reason)}`)
   if (players.status === 'rejected')
     warnings.push(`Squad unavailable — ${String(players.reason?.message ?? players.reason)}`)
+  if (news.status === 'rejected')
+    warnings.push(`News unavailable — ${String(news.reason?.message ?? news.reason)}`)
 
   const data: AppData = {
     club: club.status === 'fulfilled' ? club.value : undefined,
@@ -97,6 +103,7 @@ export async function loadAll(force = false): Promise<AppData> {
     upcoming: fixtures.status === 'fulfilled' ? fixtures.value.upcoming : [],
     players: players.status === 'fulfilled' ? players.value : [],
     kits: kits.status === 'fulfilled' ? kits.value : [],
+    news: news.status === 'fulfilled' ? news.value : [],
     live: true,
     warnings,
   }

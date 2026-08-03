@@ -8,16 +8,17 @@ Built with **React + Vite + TypeScript + Tailwind CSS**.
 
 > ℹ️ **Data source.** Football data (results, fixtures, table, squad) comes from
 > **[TheSportsDB](https://www.thesportsdb.com/)** and is **live out of the box** — no
-> account or key required. See [Live data](#live-data) for configuration and the
-> free-tier limits.
+> account or key required. News is a curated, trusted-source-filtered feed from Google
+> News. See [Live data](#live-data) and [News](#news) for details.
 
 ## Features
 
-- **Home dashboard** — league position, last result, next match, mini table (with crests), and Fenerbahçe's last-5 form & record
+- **Home dashboard** — league position, last result, next match, mini table (with crests), Fenerbahçe's last-5 form & record, and a latest-news preview
 - **Fixtures & Results** — upcoming/results tabs with club crests, round, venue and win/draw/loss markers
-- **Süper Lig table** — standings with crests and a last-5 form guide, Fenerbahçe highlighted
+- **Tables** — a table per competition Fenerbahçe plays each season (Süper Lig, Turkish Cup, UEFA competitions), with crests, a last-5 form guide, and knockout-stage results where there's no single table
 - **Squad** — filter by position; player photos and bio (foot, height, birthplace, signing)
 - **Club** — profile, stadium & capacity, competitions, official links, fan art and kits
+- **News** — curated Fenerbahçe football news from a small set of trusted outlets
 - Fully responsive (mobile bottom-tab nav, desktop top nav) and keyboard-navigable
 
 ## Getting started
@@ -45,17 +46,20 @@ src/
                 config.ts      env-driven runtime config
                 seed.ts        sample data (fallback)
                 theSportsDb.ts TheSportsDB client + response mappers
+                news.ts        client for /api/news
                 api.ts         loadAll() + caching + selectors (single entry point)
                 DataContext.tsx React provider: load once, expose {state, refresh}
   lib/          formatting helpers
-  pages/        Home, Fixtures, Standings, Squad, Club
-server/         index.js — prod server: serves dist/ + /api/sportsdb key-injecting proxy
+  pages/        Home, Fixtures, Standings, Squad, Club, News
+server/         index.js — prod server: serves dist/ + /api/sportsdb proxy + /api/news
+                news.js  — fetch/parse/filter Google News RSS (shared with the dev server)
 Dockerfile      multi-stage build → single container (build SPA, serve + proxy)
 ```
 
 Data flow: `DataProvider` calls `loadAll()` once on mount → most pages receive the
 resulting `AppData` as a prop; the Table/Fixtures pages additionally browse any season
-via `SeasonContext`. All network calls go through the same-origin `/api/sportsdb` proxy.
+via `SeasonContext`. All network calls go through the same-origin `/api/sportsdb` and
+`/api/news` routes.
 
 ## Live data
 
@@ -99,6 +103,31 @@ labels these caps rather than faking data):
 - **Security:** the key lives only in `SPORTSDB_KEY` (server-side) and is injected by the
   proxy, so it is never in the browser bundle. `VITE_`-prefixed vars *are* bundled, so
   keep secrets out of them.
+
+## News
+
+The News page and Home's "Latest news" preview pull from **Google News RSS**,
+searched for Fenerbahçe football content, fetched **server-side** (`server/news.js`)
+and filtered to a small curated allowlist of trusted outlets before being served from
+`/api/news`. No API key or account needed.
+
+- **Fetched server-side, not from the browser.** This avoids the CORS restrictions that
+  block a browser from calling Google News RSS directly, and keeps the trusted-source
+  filter somewhere it can't be bypassed by a modified client. In dev, Vite runs the same
+  logic via a custom middleware (`vite.config.ts`); in production, the Express server
+  serves it (`server/index.js`).
+- **Trusted-source allowlist is an editorial judgment call, not automated scoring** —
+  see the `TRUSTED_SOURCES` list in `server/news.js`. Add or remove outlets there;
+  matching is case-insensitive against the RSS `<source>` field.
+- **Google News RSS is a free, undocumented interface**, not a published API with a
+  support contract — it could change or be blocked by Google without notice. This is
+  the standard low-risk pattern for small, non-commercial news aggregation; it is not
+  a guarantee of uptime. Responses are cached for 15 minutes.
+- Results are scoped to football (the search query includes "football") since
+  Fenerbahçe is a multi-sport club and an unscoped search pulls in basketball/volleyball
+  coverage too.
+- Not affiliated with or endorsed by Fenerbahçe SK; article content belongs to its
+  original publishers.
 
 ## Deployment (Coolify / Docker)
 

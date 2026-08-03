@@ -1,4 +1,4 @@
-import type { ClubProfile, Fixture, Kit, Player, Standing, Team } from './types'
+import type { ClubProfile, Fixture, Kit, NewsItem, Player, Standing, Team } from './types'
 
 // ---------------------------------------------------------------------------
 // SAMPLE DATA — fallback only, shown when VITE_USE_SAMPLE=true or when the live
@@ -87,3 +87,24 @@ export const players: Player[] = [
 ]
 
 export const kits: Kit[] = []
+
+export const news: NewsItem[] = [
+  {
+    title: 'Fenerbahçe seal derby win with second-half surge',
+    link: 'https://example.com/sample-news-1',
+    source: 'Fan Hub Demo',
+    publishedAt: '2026-05-18T21:00:00.000Z',
+  },
+  {
+    title: 'Club linked with young Süper Lig winger ahead of the transfer window',
+    link: 'https://example.com/sample-news-2',
+    source: 'Fan Hub Demo',
+    publishedAt: '2026-05-15T12:00:00.000Z',
+  },
+  {
+    title: 'Key midfielder returns to full training ahead of the run-in',
+    link: 'https://example.com/sample-news-3',
+    source: 'Fan Hub Demo',
+    publishedAt: '2026-05-13T09:00:00.000Z',
+  },
+]

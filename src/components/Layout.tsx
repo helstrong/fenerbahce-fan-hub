@@ -9,6 +9,7 @@ const nav = [
   { to: '/standings', label: 'Table', icon: 'standings', end: false },
   { to: '/squad', label: 'Squad', icon: 'squad', end: false },
   { to: '/club', label: 'Club', icon: 'club', end: false },
+  { to: '/news', label: 'News', icon: 'news', end: false },
 ]
 
 interface LayoutProps {

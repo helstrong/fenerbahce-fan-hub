@@ -1,6 +1,7 @@
 // Production server: serves the built SPA (dist/) and proxies /api/sportsdb to
 // TheSportsDB, injecting the API key from a server-side env var. The key is
 // never sent to the browser — clients only ever call this same-origin path.
+// Also serves /api/news (see ./news.js) — filtered, cached club news.
 //
 // Env:
 //   SPORTSDB_KEY       TheSportsDB API key (server-side secret; defaults to "123")
@@ -10,6 +11,7 @@
 import express from 'express'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { fetchNews } from './news.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const dist = path.join(__dirname, '..', 'dist')
@@ -64,6 +66,16 @@ app.get('/api/sportsdb/:endpoint', async (req, res) => {
     res.json(body)
   } catch {
     res.status(502).json({ error: 'upstream request failed' })
+  }
+})
+
+app.get('/api/news', async (_req, res) => {
+  try {
+    const items = await fetchNews()
+    res.set('Cache-Control', 'public, max-age=600')
+    res.json({ items })
+  } catch {
+    res.status(502).json({ error: 'news feed request failed' })
   }
 })
 

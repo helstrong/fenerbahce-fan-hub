@@ -6,6 +6,7 @@ const paths: Record<string, string> = {
   standings: 'M4 6h16M4 12h16M4 18h16',
   squad: 'M12 12a4 4 0 100-8 4 4 0 000 8zM4 20c0-4 4-6 8-6s8 2 8 6',
   club: 'M12 3l7 3v5c0 4-3 7-7 9-4-2-7-5-7-9V6z',
+  news: 'M4 5h16v14H4zM8 9h8M8 13h8M8 17h4',
 }
 
 export default function Icon({ name, className }: IconProps) {
