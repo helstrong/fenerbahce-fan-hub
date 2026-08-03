@@ -1,10 +1,11 @@
-import { FENER_ID } from '../data/api'
+import { FENER_ID, roundLabel } from '../data/api'
 import type { Fixture, Team } from '../data/types'
 import { fmtDateTime } from '../lib/format'
 import TeamBadge from './TeamBadge'
 
 export default function MatchCard({ fixture }: { fixture: Fixture }) {
   const finished = fixture.status === 'finished'
+  const round = roundLabel(fixture)
   const fenerHome = fixture.home.id === FENER_ID
   const fenerScore = fenerHome ? fixture.homeScore : fixture.awayScore
   const oppScore = fenerHome ? fixture.awayScore : fixture.homeScore
@@ -46,8 +47,8 @@ export default function MatchCard({ fixture }: { fixture: Fixture }) {
 
       <div className="mt-3 flex items-center justify-between text-xs text-slate-500">
         <span className="truncate">
-          {fixture.round ? `Round ${fixture.round}` : ''}
-          {fixture.round && fixture.venue ? ' · ' : ''}
+          {round ?? ''}
+          {round && fixture.venue ? ' · ' : ''}
           {fixture.venue}
         </span>
         {result && (

@@ -1,8 +1,9 @@
 import FormGuide from '../components/FormGuide'
+import MatchCard from '../components/MatchCard'
 import SeasonSelect from '../components/SeasonSelect'
 import TeamBadge from '../components/TeamBadge'
 import { FENER_ID, IS_FREE_KEY } from '../data/api'
-import type { CompetitionStandings } from '../data/api'
+import type { CompetitionStandings, KnockoutStage } from '../data/api'
 import { useSeason, useSelectedCompetition } from '../data/SeasonContext'
 
 export default function Standings() {
@@ -44,30 +45,44 @@ export default function Standings() {
           {status === 'loading' ? 'Loading tables…' : 'No competitions found for this season.'}
         </p>
       ) : active ? (
-        <CompetitionTable competition={active} />
+        <CompetitionView competition={active} />
       ) : null}
     </div>
   )
 }
 
-function CompetitionTable({ competition }: { competition: CompetitionStandings }) {
-  if (competition.source === 'unavailable') {
+function CompetitionView({ competition }: { competition: CompetitionStandings }) {
+  const hasTable = competition.source !== 'unavailable' && competition.standings.length > 0
+  const hasKnockout = competition.knockout.length > 0
+
+  if (!hasTable && !hasKnockout) {
     return (
       <div className="rounded-2xl border border-dashed border-slate-200 p-6 text-center text-sm text-slate-400">
-        {competition.note}
+        {competition.note ?? 'No data available for this competition.'}
       </div>
     )
   }
 
-  const standings = competition.standings
-  if (!standings.length) {
-    return <p className="text-sm text-slate-400">No standings available for this competition.</p>
-  }
+  return (
+    <div className="space-y-6">
+      {hasTable && <LeagueTable competition={competition} />}
+      {hasKnockout && (
+        <div>
+          {hasTable && <h2 className="mb-3 text-lg font-bold text-fener-navy">Knockout stage</h2>}
+          {!hasTable && competition.note && <p className="mb-3 text-sm text-slate-400">{competition.note}</p>}
+          <KnockoutBracket stages={competition.knockout} />
+        </div>
+      )}
+    </div>
+  )
+}
 
+function LeagueTable({ competition }: { competition: CompetitionStandings }) {
+  const standings = competition.standings
   const showForm = competition.source === 'official'
 
   return (
-    <>
+    <div>
       <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm">
         <table className="w-full min-w-[620px] text-sm">
           <thead>
@@ -144,6 +159,26 @@ function CompetitionTable({ competition }: { competition: CompetitionStandings }
           competition.note
         )}
       </p>
-    </>
+    </div>
+  )
+}
+
+// Fenerbahçe's own run through the knockout rounds, one stage at a time
+// (Qualifying, Play-off, Round of 16, ...) — real results, not a full bracket
+// of every tie in the competition.
+function KnockoutBracket({ stages }: { stages: KnockoutStage[] }) {
+  return (
+    <div className="space-y-4">
+      {stages.map((stage) => (
+        <div key={stage.label}>
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">{stage.label}</p>
+          <div className="grid gap-3 md:grid-cols-2">
+            {stage.fixtures.map((f) => (
+              <MatchCard key={f.id} fixture={f} />
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
   )
 }

@@ -8,8 +8,9 @@ import {
   fetchPlayers,
   fetchSeasonFixtures,
   fetchStandings,
+  roundLabel,
 } from './theSportsDb'
-import type { CompetitionStandings } from './theSportsDb'
+import type { CompetitionStandings, KnockoutStage } from './theSportsDb'
 import {
   club as sampleClub,
   fixtures as sampleFixtures,
@@ -19,7 +20,8 @@ import {
 } from './seed'
 import type { AppData, Fixture } from './types'
 
-export type { CompetitionStandings }
+export type { CompetitionStandings, KnockoutStage }
+export { roundLabel }
 
 // The single entry point every screen reads from. Swap the data source by
 // toggling VITE_USE_SAMPLE in .env — the return shape (AppData) never changes.
@@ -123,7 +125,13 @@ export async function loadSeason(season: string): Promise<SeasonData> {
     const s = sampleData()
     return {
       competitions: [
-        { competitionId: LEAGUE_ID, competitionName: 'Süper Lig', source: 'official', standings: s.standings },
+        {
+          competitionId: LEAGUE_ID,
+          competitionName: 'Süper Lig',
+          source: 'official',
+          standings: s.standings,
+          knockout: [],
+        },
       ],
       results: s.results,
       upcoming: s.upcoming,

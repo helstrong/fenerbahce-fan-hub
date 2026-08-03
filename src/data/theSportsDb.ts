@@ -232,11 +232,17 @@ function computeStandingsFromFixtures(fixtures: Fixture[]): Standing[] {
     .map((r, i) => ({ rank: i + 1, ...r }))
 }
 
+export interface KnockoutStage {
+  label: string
+  fixtures: Fixture[]
+}
+
 export interface CompetitionStandings {
   competitionId: number
   competitionName: string
   source: 'official' | 'computed' | 'unavailable'
   standings: Standing[]
+  knockout: KnockoutStage[]
   note?: string
 }
 
@@ -256,11 +262,71 @@ function isLeaguePhase(f: Fixture): boolean {
   return Number.isFinite(round) && round >= 1 && round <= 8
 }
 
+// Maps TheSportsDB's knockout round codes to a human stage name. Verified
+// live across both the pre-2024 group-stage era and the post-2024 Swiss
+// format — the codes for the business end (Ro16 onward) are stable across
+// both, but the play-off round before it uses a different code per era
+// (160 pre-2024, 32 post-2024), so both are mapped defensively.
+const KNOCKOUT_STAGE_LABELS: Record<string, string> = {
+  '400': 'Qualifying',
+  '160': 'Knockout Play-off',
+  '32': 'Knockout Play-off',
+  '16': 'Round of 16',
+  '125': 'Quarter-final',
+  '150': 'Semi-final',
+  '200': 'Final',
+}
+
+// Resolves a fixture's round code into a human label appropriate to its
+// competition: the Swiss-format league-phase matchday for UEFA competitions'
+// rounds 1-8, a named knockout stage for UEFA/Turkish Cup knockout rounds, or
+// a literal round number for anything else (domestic league, friendlies).
+export function roundLabel(fixture: Fixture): string | undefined {
+  const round = fixture.round
+  // '0' consistently means "not set" in this data (seen on friendlies and on
+  // at least one cup fixture that was clearly a later round) — never show it.
+  if (!round || round === '0') return undefined
+
+  if (fixture.competition.startsWith('UEFA ')) {
+    const n = Number(round)
+    if (Number.isFinite(n) && n >= 1 && n <= 8) return `Matchday ${round}`
+    return KNOCKOUT_STAGE_LABELS[round] ?? 'Knockout stage'
+  }
+
+  if (fixture.competition === 'Turkish Cup') {
+    if (KNOCKOUT_STAGE_LABELS[round]) return KNOCKOUT_STAGE_LABELS[round]
+    if (/^\d+$/.test(round)) return `Round ${round}`
+    return 'Knockout stage'
+  }
+
+  return `Round ${round}`
+}
+
+// Groups a team's own matches into knockout stages (Qualifying, Play-off,
+// Round of 16, ...), ordered by when each stage was actually played.
+function buildKnockoutStages(fixtures: Fixture[]): KnockoutStage[] {
+  const byLabel = new Map<string, Fixture[]>()
+  for (const f of fixtures) {
+    const label = roundLabel(f) ?? 'Knockout stage'
+    const list = byLabel.get(label) ?? []
+    list.push(f)
+    byLabel.set(label, list)
+  }
+
+  const stages = [...byLabel.entries()].map(([label, fixtures]) => {
+    fixtures.sort((a, b) => +new Date(a.date) - +new Date(b.date))
+    return { label, fixtures }
+  })
+  stages.sort((a, b) => +new Date(a.fixtures[0].date) - +new Date(b.fixtures[0].date))
+  return stages
+}
+
 // One entry per competition Fenerbahçe actually played in the given season:
 // the official Süper Lig table, a computed table for post-2024 UEFA
 // competitions, or a short explanatory note where no table is possible
 // (Turkish Cup is always a knockout; pre-2024 UEFA group stages can't be
-// reconstructed from fixtures alone).
+// reconstructed from fixtures alone) — paired in both cases with Fenerbahçe's
+// actual knockout-stage results, since those are real regardless of format era.
 export async function fetchCompetitionTables(
   season: string = SEASON,
   eventsByCompetition?: Map<number, Fixture[]>,
@@ -272,10 +338,17 @@ export async function fetchCompetitionTables(
 
   for (const { id, name } of COMPETITIONS) {
     const list = events.get(id) ?? []
-    if (!list.some((f) => f.home.id === team || f.away.id === team)) continue // FB didn't play this one
+    const own = list.filter((f) => f.home.id === team || f.away.id === team)
+    if (!own.length) continue // Fenerbahçe didn't play this one this season
 
     if (id === LEAGUE_ID) {
-      out.push({ competitionId: id, competitionName: name, source: 'official', standings: await fetchStandings(season) })
+      out.push({
+        competitionId: id,
+        competitionName: name,
+        source: 'official',
+        standings: await fetchStandings(season),
+        knockout: [],
+      })
       continue
     }
 
@@ -285,10 +358,13 @@ export async function fetchCompetitionTables(
         competitionName: name,
         source: 'unavailable',
         standings: [],
-        note: 'Knockout competition — there is no league table. See Fixtures for round-by-round results.',
+        knockout: buildKnockoutStages(own),
+        note: 'Knockout competition — there is no league table.',
       })
       continue
     }
+
+    const knockout = buildKnockoutStages(own.filter((f) => !isLeaguePhase(f)))
 
     if (Number.isFinite(seasonStartYear) && seasonStartYear >= EURO_SINGLE_TABLE_FROM_YEAR) {
       out.push({
@@ -296,6 +372,7 @@ export async function fetchCompetitionTables(
         competitionName: name,
         source: 'computed',
         standings: computeStandingsFromFixtures(list.filter(isLeaguePhase)),
+        knockout,
         note: 'Computed from match results — not supplied by the data source. Tiebreakers are simplified (points, then goal difference, then goals scored) and may differ slightly from the official UEFA table.',
       })
     } else {
@@ -304,7 +381,8 @@ export async function fetchCompetitionTables(
         competitionName: name,
         source: 'unavailable',
         standings: [],
-        note: 'Group-stage era — a single table isn’t available from this data source. See Fixtures for results.',
+        knockout,
+        note: 'Group-stage era — a single table isn’t available from this data source.',
       })
     }
   }
