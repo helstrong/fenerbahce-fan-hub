@@ -30,7 +30,7 @@ export { roundLabel }
 
 export { FENER_ID, IS_FREE_KEY }
 
-const CACHE_KEY = 'fener-fan-hub:data:v3'
+const CACHE_KEY = 'fener-fan-hub:data:v4'
 
 function sampleData(): AppData {
   const byDateAsc = (a: Fixture, b: Fixture) => +new Date(a.date) - +new Date(b.date)
@@ -49,13 +49,31 @@ function sampleData(): AppData {
   }
 }
 
+// Guards against a stale cache crashing the app: if a future change to AppData's
+// shape ships without bumping CACHE_KEY, an old cached object would be missing a
+// field the new UI expects (e.g. reading .length on undefined) with nothing to
+// catch it. Checking the arrays actually exist costs little and means a stale
+// shape falls back to a fresh fetch instead of a blank page.
+function isValidCache(v: unknown): v is AppData {
+  if (!v || typeof v !== 'object') return false
+  const d = v as Partial<AppData>
+  return (
+    Array.isArray(d.standings) &&
+    Array.isArray(d.results) &&
+    Array.isArray(d.upcoming) &&
+    Array.isArray(d.players) &&
+    Array.isArray(d.kits) &&
+    Array.isArray(d.news)
+  )
+}
+
 function readCache(): AppData | null {
   try {
     const raw = localStorage.getItem(CACHE_KEY)
     if (!raw) return null
     const { t, v } = JSON.parse(raw)
     if (Date.now() - t > CACHE_TTL_MS) return null
-    return v as AppData
+    return isValidCache(v) ? v : null
   } catch {
     return null
   }
