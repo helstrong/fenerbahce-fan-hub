@@ -177,6 +177,11 @@ temporarily relax the `robots.txt` block so crawlers can see the `noindex` signa
 
 ## Changelog
 
+- **2026-08-03** — Fix: a blank white page after deploy for anyone with a cached
+  session from before the news feature shipped (AppData gained a field without a
+  cache-key bump, and an old cached shape crashed the render with nothing to catch
+  it). Cache is now shape-validated, and an ErrorBoundary catches any future
+  unhandled render error instead of leaving a blank page. (`569da43`)
 - **2026-08-03** — Club news feed: a News page and Home preview, sourced from a
   curated allowlist of trusted outlets via Google News RSS, fetched server-side.
   (`fe362cf`)
