@@ -1,12 +1,15 @@
-import { CACHE_TTL_MS, FENER_ID, IS_FREE_KEY, USE_LIVE } from './config'
+import { CACHE_TTL_MS, FENER_ID, IS_FREE_KEY, LEAGUE_ID, USE_LIVE } from './config'
 import {
   fetchClub,
+  fetchCompetitionEvents,
+  fetchCompetitionTables,
   fetchFixtures,
   fetchKits,
   fetchPlayers,
   fetchSeasonFixtures,
   fetchStandings,
 } from './theSportsDb'
+import type { CompetitionStandings } from './theSportsDb'
 import {
   club as sampleClub,
   fixtures as sampleFixtures,
@@ -14,7 +17,9 @@ import {
   players as samplePlayers,
   standings as sampleStandings,
 } from './seed'
-import type { AppData, Fixture, Standing } from './types'
+import type { AppData, Fixture } from './types'
+
+export type { CompetitionStandings }
 
 // The single entry point every screen reads from. Swap the data source by
 // toggling VITE_USE_SAMPLE in .env — the return shape (AppData) never changes.
@@ -107,7 +112,7 @@ export async function loadAll(force = false): Promise<AppData> {
 // Independent of the once-loaded AppData: the Home dashboard stays on current
 // rolling fixtures while these pages browse any season on demand.
 export interface SeasonData {
-  standings: Standing[]
+  competitions: CompetitionStandings[]
   results: Fixture[]
   upcoming: Fixture[]
   warnings: string[]
@@ -116,22 +121,33 @@ export interface SeasonData {
 export async function loadSeason(season: string): Promise<SeasonData> {
   if (!USE_LIVE) {
     const s = sampleData()
-    return { standings: s.standings, results: s.results, upcoming: s.upcoming, warnings: [] }
+    return {
+      competitions: [
+        { competitionId: LEAGUE_ID, competitionName: 'Süper Lig', source: 'official', standings: s.standings },
+      ],
+      results: s.results,
+      upcoming: s.upcoming,
+      warnings: [],
+    }
   }
 
-  const [standings, fixtures] = await Promise.allSettled([
-    fetchStandings(season),
-    fetchSeasonFixtures(season),
+  // Fetched once and shared: both the fixtures merge and the competition
+  // tables (which compute standings from full results) read from this.
+  const events = await fetchCompetitionEvents(season).catch(() => new Map<number, Fixture[]>())
+
+  const [competitions, fixtures] = await Promise.allSettled([
+    fetchCompetitionTables(season, events),
+    fetchSeasonFixtures(season, events),
   ])
 
   const warnings: string[] = []
-  if (standings.status === 'rejected')
-    warnings.push(`Standings unavailable — ${String(standings.reason?.message ?? standings.reason)}`)
+  if (competitions.status === 'rejected')
+    warnings.push(`Standings unavailable — ${String(competitions.reason?.message ?? competitions.reason)}`)
   if (fixtures.status === 'rejected')
     warnings.push(`Fixtures unavailable — ${String(fixtures.reason?.message ?? fixtures.reason)}`)
 
   return {
-    standings: standings.status === 'fulfilled' ? standings.value : [],
+    competitions: competitions.status === 'fulfilled' ? competitions.value : [],
     results: fixtures.status === 'fulfilled' ? fixtures.value.results : [],
     upcoming: fixtures.status === 'fulfilled' ? fixtures.value.upcoming : [],
     warnings,

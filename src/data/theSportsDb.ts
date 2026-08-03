@@ -102,15 +102,30 @@ export async function fetchFixtures(): Promise<{ results: Fixture[]; upcoming: F
 }
 
 // Competitions Fenerbahçe may play in a given season. eventsseason returns the
-// whole competition, so we query each, filter to our team, and merge. Only the
-// leagues the club actually featured in return matches; the rest come back empty.
-const SEASON_COMPETITIONS = [
-  LEAGUE_ID, // Süper Lig
-  4960, // Turkish Cup
-  4480, // UEFA Champions League
-  4481, // UEFA Europa League
-  5071, // UEFA Conference League
+// whole competition, so we query each and keep every match (not just our
+// team's) — the full list is also what lets us compute a standings table for
+// competitions TheSportsDB doesn't supply one for (see fetchCompetitionTables).
+const COMPETITIONS: { id: number; name: string }[] = [
+  { id: LEAGUE_ID, name: 'Süper Lig' },
+  { id: 4960, name: 'Turkish Cup' },
+  { id: 4480, name: 'UEFA Champions League' },
+  { id: 4481, name: 'UEFA Europa League' },
+  { id: 5071, name: 'UEFA Conference League' },
 ]
+
+// Fetch every match of every candidate competition for a season, once. Shared
+// by fetchSeasonFixtures (filters to our team) and fetchCompetitionTables
+// (uses the full list to compute a table) so neither refetches the other's data.
+export async function fetchCompetitionEvents(season: string): Promise<Map<number, Fixture[]>> {
+  const lists = await Promise.all(
+    COMPETITIONS.map(({ id }) =>
+      request('eventsseason.php', { id, s: season })
+        .then((r) => ((r.events ?? []) as any[]).map(toFixture))
+        .catch(() => [] as Fixture[]),
+    ),
+  )
+  return new Map(COMPETITIONS.map(({ id }, i) => [id, lists[i]]))
+}
 
 // A season "2025-2026" runs ~Jul 2025 → Jun 2026. Used to attribute rolling
 // events (which include friendlies) to the selected season by date.
@@ -119,44 +134,35 @@ function seasonRange(season: string): [number, number] {
   return [Date.UTC(start, 6, 1), Date.UTC(start + 1, 5, 30, 23, 59, 59)]
 }
 
-const involvesTeam = (x: any, team: string) =>
-  String(x.idHomeTeam) === team || String(x.idAwayTeam) === team
-
-// Full season across every competition (league, cup, European) plus friendlies,
-// via premium. Friendlies aren't reliably in eventsseason, so we fold in the
-// team's rolling events that fall inside the season window and dedupe by id.
+// Full season across every competition (league, cup, European) plus friendlies.
+// Friendlies aren't reliably in eventsseason, so we fold in the team's rolling
+// events that fall inside the season window and dedupe by id.
 export async function fetchSeasonFixtures(
   season: string = SEASON,
+  eventsByCompetition?: Map<number, Fixture[]>,
 ): Promise<{ results: Fixture[]; upcoming: Fixture[] }> {
   const team = String(TEAM_ID)
+  const events = eventsByCompetition ?? (await fetchCompetitionEvents(season))
 
-  const competitions = Promise.all(
-    SEASON_COMPETITIONS.map((id) =>
-      request('eventsseason.php', { id, s: season })
-        .then((r) => (r.events ?? []) as any[])
-        .catch(() => []),
-    ),
-  )
-  const rolling = Promise.all(
+  const rollingRaw = await Promise.all(
     [
       request('eventslast.php', { id: TEAM_ID }).then((r) => (r.results ?? r.events ?? []) as any[]),
       request('eventsnext.php', { id: TEAM_ID }).then((r) => (r.events ?? []) as any[]),
     ].map((p) => p.catch(() => [] as any[])),
   )
 
-  const [competitionLists, rollingLists] = await Promise.all([competitions, rolling])
-
   const byId = new Map<string, Fixture>()
-  for (const list of competitionLists)
-    for (const x of list) if (involvesTeam(x, team)) byId.set(String(x.idEvent), toFixture(x))
+  for (const list of events.values())
+    for (const f of list) if (f.home.id === team || f.away.id === team) byId.set(f.id, f)
 
   // Rolling events (all competitions incl. friendlies) within the season window.
   const [from, to] = seasonRange(season)
-  for (const list of rollingLists)
-    for (const x of list) {
-      if (!involvesTeam(x, team) || byId.has(String(x.idEvent))) continue
-      const t = +new Date(x.strTimestamp || x.dateEvent || 0)
-      if (t >= from && t <= to) byId.set(String(x.idEvent), toFixture(x))
+  for (const raw of rollingRaw)
+    for (const x of raw) {
+      const f = toFixture(x)
+      if (byId.has(f.id) || (f.home.id !== team && f.away.id !== team)) continue
+      const t = +new Date(f.date)
+      if (t >= from && t <= to) byId.set(f.id, f)
     }
 
   const all = [...byId.values()]
@@ -168,6 +174,142 @@ export async function fetchSeasonFixtures(
     .sort((a, b) => +new Date(a.date) - +new Date(b.date))
 
   return { results, upcoming }
+}
+
+// Builds a standings table from a set of finished matches. Used where
+// TheSportsDB doesn't supply an official table (UEFA's Swiss-format single
+// table) — real results, but tiebreakers are simplified (points → goal
+// difference → goals scored) rather than UEFA's full tiebreak rules.
+function computeStandingsFromFixtures(fixtures: Fixture[]): Standing[] {
+  interface Row {
+    team: Team
+    played: number
+    won: number
+    drawn: number
+    lost: number
+    gf: number
+    ga: number
+    points: number
+  }
+  const rows = new Map<string, Row>()
+  const row = (team: Team): Row => {
+    let r = rows.get(team.id)
+    if (!r) {
+      r = { team, played: 0, won: 0, drawn: 0, lost: 0, gf: 0, ga: 0, points: 0 }
+      rows.set(team.id, r)
+    }
+    return r
+  }
+
+  for (const f of fixtures) {
+    if (f.status !== 'finished' || f.homeScore === null || f.awayScore === null) continue
+    const home = row(f.home)
+    const away = row(f.away)
+    home.played++
+    away.played++
+    home.gf += f.homeScore
+    home.ga += f.awayScore
+    away.gf += f.awayScore
+    away.ga += f.homeScore
+    if (f.homeScore > f.awayScore) {
+      home.won++
+      away.lost++
+      home.points += 3
+    } else if (f.homeScore < f.awayScore) {
+      away.won++
+      home.lost++
+      away.points += 3
+    } else {
+      home.drawn++
+      away.drawn++
+      home.points++
+      away.points++
+    }
+  }
+
+  return [...rows.values()]
+    .sort((a, b) => b.points - a.points || b.gf - b.ga - (a.gf - a.ga) || b.gf - a.gf)
+    .map((r, i) => ({ rank: i + 1, ...r }))
+}
+
+export interface CompetitionStandings {
+  competitionId: number
+  competitionName: string
+  source: 'official' | 'computed' | 'unavailable'
+  standings: Standing[]
+  note?: string
+}
+
+// First season UEFA's club competitions used a single Swiss-format table
+// instead of groups — a standalone table is only meaningful from here on.
+const EURO_SINGLE_TABLE_FROM_YEAR = 2024
+
+const TURKISH_CUP_ID = 4960
+
+// eventsseason returns every stage of the competition together — qualifying
+// rounds, the 8-match Swiss league phase, and the knockout rounds — all in one
+// list. TheSportsDB codes the league-phase matchdays as intRound 1-8; every
+// knockout/qualifying stage uses a distinct, larger code (16, 32, 125, 150,
+// 200, 400, ...). Only the league-phase matches make up the single table.
+function isLeaguePhase(f: Fixture): boolean {
+  const round = Number(f.round)
+  return Number.isFinite(round) && round >= 1 && round <= 8
+}
+
+// One entry per competition Fenerbahçe actually played in the given season:
+// the official Süper Lig table, a computed table for post-2024 UEFA
+// competitions, or a short explanatory note where no table is possible
+// (Turkish Cup is always a knockout; pre-2024 UEFA group stages can't be
+// reconstructed from fixtures alone).
+export async function fetchCompetitionTables(
+  season: string = SEASON,
+  eventsByCompetition?: Map<number, Fixture[]>,
+): Promise<CompetitionStandings[]> {
+  const team = String(TEAM_ID)
+  const events = eventsByCompetition ?? (await fetchCompetitionEvents(season))
+  const seasonStartYear = parseInt(season, 10)
+  const out: CompetitionStandings[] = []
+
+  for (const { id, name } of COMPETITIONS) {
+    const list = events.get(id) ?? []
+    if (!list.some((f) => f.home.id === team || f.away.id === team)) continue // FB didn't play this one
+
+    if (id === LEAGUE_ID) {
+      out.push({ competitionId: id, competitionName: name, source: 'official', standings: await fetchStandings(season) })
+      continue
+    }
+
+    if (id === TURKISH_CUP_ID) {
+      out.push({
+        competitionId: id,
+        competitionName: name,
+        source: 'unavailable',
+        standings: [],
+        note: 'Knockout competition — there is no league table. See Fixtures for round-by-round results.',
+      })
+      continue
+    }
+
+    if (Number.isFinite(seasonStartYear) && seasonStartYear >= EURO_SINGLE_TABLE_FROM_YEAR) {
+      out.push({
+        competitionId: id,
+        competitionName: name,
+        source: 'computed',
+        standings: computeStandingsFromFixtures(list.filter(isLeaguePhase)),
+        note: 'Computed from match results — not supplied by the data source. Tiebreakers are simplified (points, then goal difference, then goals scored) and may differ slightly from the official UEFA table.',
+      })
+    } else {
+      out.push({
+        competitionId: id,
+        competitionName: name,
+        source: 'unavailable',
+        standings: [],
+        note: 'Group-stage era — a single table isn’t available from this data source. See Fixtures for results.',
+      })
+    }
+  }
+
+  return out
 }
 
 // ---- Squad (bio only, ~10 players on the free tier) ---------------------
