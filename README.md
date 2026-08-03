@@ -146,6 +146,26 @@ noindex` response header (authoritative), a `<meta name="robots" content="noinde
 tag, and `robots.txt`. If the site were ever already indexed and you wanted it removed,
 temporarily relax the `robots.txt` block so crawlers can see the `noindex` signal.
 
+## Changelog
+
+- **2026-08-03** — Knockout-stage results for cup & European ties: Turkish Cup and
+  UEFA competitions now show Fenerbahçe's actual run through the rounds (Qualifying,
+  Play-off, Round of 16, Quarter-final, Semi-final, Final) instead of just a
+  "no table" note. (`65f13ef`)
+- **2026-08-03** — Season and competition filters on the Home dashboard's Table card,
+  matching the full Table page. (`1ce7da3`)
+- **2026-08-03** — Tables for every competition Fenerbahçe plays each season (Süper Lig,
+  Turkish Cup, UEFA competitions), not just the domestic league. (`72b7ac7`)
+- **2026-07-11** — Official club crest in the header. (`f7facf7`)
+- **2026-07-11** — Redesigned Home hero: crest + stats row layout. (`adcc9c0`)
+- **2026-07-11** — Production deployment: same-origin API proxy keeps the TheSportsDB
+  key server-side, Docker/Coolify support, search-engine no-index. (`6746b20`)
+- **2026-07-11** — Switched the live data source to TheSportsDB — works directly from
+  the browser with no backend, plus a club profile page, season browsing, real team
+  crests and squad photos. (`87eda8d`)
+- **2026-07-10** — Live data via API-Football, with a sample-data fallback. (`709ba8e`)
+- **2026-07-10** — Initial MVP: dashboard, fixtures, table, squad, news. (`85b31f6`)
+
 ## Licence
 
 Personal/educational use.
