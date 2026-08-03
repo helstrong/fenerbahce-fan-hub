@@ -177,6 +177,11 @@ temporarily relax the `robots.txt` block so crawlers can see the `noindex` signa
 
 ## Changelog
 
+- **2026-08-03** — Club news feed: a News page and Home preview, sourced from a
+  curated allowlist of trusted outlets via Google News RSS, fetched server-side.
+  (`fe362cf`)
+- **2026-08-03** — Knockout-stage results also shown on the Home dashboard's Table
+  card, not just the full Table page. (`87f9f8b`)
 - **2026-08-03** — Knockout-stage results for cup & European ties: Turkish Cup and
   UEFA competitions now show Fenerbahçe's actual run through the rounds (Qualifying,
   Play-off, Round of 16, Quarter-final, Semi-final, Final) instead of just a
