@@ -1,17 +1,24 @@
 import { Link } from 'react-router-dom'
 import { Card, SectionTitle } from '../components/Card'
+import CompetitionSelect from '../components/CompetitionSelect'
 import Crest from '../components/Crest'
 import FormGuide from '../components/FormGuide'
 import MatchCard from '../components/MatchCard'
+import SeasonSelect from '../components/SeasonSelect'
 import TeamBadge from '../components/TeamBadge'
 import { FENER_ID, lastResult, nextMatch, standingFor } from '../data/api'
+import { useSeason, useSelectedCompetition } from '../data/SeasonContext'
 import type { AppData } from '../data/types'
 
 export default function Home({ data }: { data: AppData }) {
   const last = lastResult(data)
   const next = nextMatch(data)
-  const standings = data.standings
   const fener = standingFor(data, FENER_ID)
+
+  const { status: seasonStatus, data: seasonData } = useSeason()
+  const competitions = seasonData?.competitions ?? []
+  const [activeCompetitionId, setActiveCompetitionId] = useSelectedCompetition(competitions)
+  const activeCompetition = competitions.find((c) => c.competitionId === activeCompetitionId) ?? competitions[0]
 
   return (
     <div className="space-y-6">
@@ -57,9 +64,25 @@ export default function Home({ data }: { data: AppData }) {
           >
             Table
           </SectionTitle>
-          {standings.length ? (
+
+          <div className="mb-3 flex flex-wrap items-center gap-2">
+            <SeasonSelect />
+            <CompetitionSelect
+              competitions={competitions}
+              value={activeCompetitionId}
+              onChange={setActiveCompetitionId}
+            />
+          </div>
+
+          {seasonStatus === 'error' ? (
+            <Empty label="Couldn’t load the table" />
+          ) : !competitions.length ? (
+            <Empty label={seasonStatus === 'loading' ? 'Loading…' : 'No competitions this season'} />
+          ) : activeCompetition?.source === 'unavailable' ? (
+            <Empty label={activeCompetition.note ?? 'No table available'} />
+          ) : activeCompetition?.standings.length ? (
             <div className="space-y-1">
-              {standings.slice(0, 6).map((s) => (
+              {activeCompetition.standings.slice(0, 6).map((s) => (
                 <div
                   key={s.team.id}
                   className={`flex items-center gap-3 rounded-lg px-2 py-1.5 text-sm ${

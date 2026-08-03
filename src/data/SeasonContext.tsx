@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { loadSeason } from './api'
-import type { SeasonData } from './api'
+import type { CompetitionStandings, SeasonData } from './api'
 import { SEASON } from './config'
 
 type Status = 'loading' | 'ready' | 'error'
@@ -71,4 +71,24 @@ export function useSeason(): SeasonContextValue {
   const ctx = useContext(SeasonContext)
   if (!ctx) throw new Error('useSeason must be used within <SeasonProvider>')
   return ctx
+}
+
+// Tracks which competition tab/dropdown is active, defaulting to the first
+// (Süper Lig, when present) and re-selecting it whenever the available
+// competitions change — e.g. after switching season. Shared by any view that
+// lets the user pick a competition (Standings page, Home's Table card).
+export function useSelectedCompetition(
+  competitions: CompetitionStandings[],
+): [number | null, (id: number) => void] {
+  const [id, setId] = useState<number | null>(null)
+
+  useEffect(() => {
+    if (!competitions.length) return
+    if (id === null || !competitions.some((c) => c.competitionId === id)) {
+      setId(competitions[0].competitionId)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [competitions])
+
+  return [id, setId]
 }

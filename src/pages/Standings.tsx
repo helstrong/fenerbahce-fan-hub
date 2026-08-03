@@ -1,25 +1,14 @@
-import { useEffect, useState } from 'react'
 import FormGuide from '../components/FormGuide'
 import SeasonSelect from '../components/SeasonSelect'
 import TeamBadge from '../components/TeamBadge'
 import { FENER_ID, IS_FREE_KEY } from '../data/api'
 import type { CompetitionStandings } from '../data/api'
-import { useSeason } from '../data/SeasonContext'
+import { useSeason, useSelectedCompetition } from '../data/SeasonContext'
 
 export default function Standings() {
   const { status, data } = useSeason()
   const competitions = data?.competitions ?? []
-  const [selectedId, setSelectedId] = useState<number | null>(null)
-
-  // Keep the selection valid as the season changes; default to the first
-  // competition (Süper Lig, since that's always listed first when present).
-  useEffect(() => {
-    if (!competitions.length) return
-    if (selectedId === null || !competitions.some((c) => c.competitionId === selectedId)) {
-      setSelectedId(competitions[0].competitionId)
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [competitions])
+  const [selectedId, setSelectedId] = useSelectedCompetition(competitions)
 
   const active = competitions.find((c) => c.competitionId === selectedId) ?? competitions[0]
 
