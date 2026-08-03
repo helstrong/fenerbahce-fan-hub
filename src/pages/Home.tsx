@@ -7,6 +7,7 @@ import MatchCard from '../components/MatchCard'
 import SeasonSelect from '../components/SeasonSelect'
 import TeamBadge from '../components/TeamBadge'
 import { FENER_ID, lastResult, nextMatch, standingFor } from '../data/api'
+import type { KnockoutStage } from '../data/api'
 import { useSeason, useSelectedCompetition } from '../data/SeasonContext'
 import type { AppData } from '../data/types'
 
@@ -79,23 +80,38 @@ export default function Home({ data }: { data: AppData }) {
           ) : !competitions.length ? (
             <Empty label={seasonStatus === 'loading' ? 'Loading…' : 'No competitions this season'} />
           ) : activeCompetition?.source === 'unavailable' ? (
-            <Empty label={activeCompetition.note ?? 'No table available'} />
+            activeCompetition.knockout.length ? (
+              <div className="space-y-3">
+                {activeCompetition.note && <p className="text-xs text-slate-400">{activeCompetition.note}</p>}
+                <KnockoutMini stages={activeCompetition.knockout} />
+              </div>
+            ) : (
+              <Empty label={activeCompetition.note ?? 'No table available'} />
+            )
           ) : activeCompetition?.standings.length ? (
-            <div className="space-y-1">
-              {activeCompetition.standings.slice(0, 6).map((s) => (
-                <div
-                  key={s.team.id}
-                  className={`flex items-center gap-3 rounded-lg px-2 py-1.5 text-sm ${
-                    s.team.id === FENER_ID ? 'bg-fener-yellow/20 font-semibold text-fener-navy' : ''
-                  }`}
-                >
-                  <span className="w-4 text-slate-400">{s.rank}</span>
-                  <TeamBadge team={s.team} size={20} highlight={s.team.id === FENER_ID} />
-                  <span className="flex-1 truncate">{s.team.name}</span>
-                  <span className="text-slate-400">{s.played}</span>
-                  <span className="w-6 text-right font-bold">{s.points}</span>
+            <div className="space-y-4">
+              <div className="space-y-1">
+                {activeCompetition.standings.slice(0, 6).map((s) => (
+                  <div
+                    key={s.team.id}
+                    className={`flex items-center gap-3 rounded-lg px-2 py-1.5 text-sm ${
+                      s.team.id === FENER_ID ? 'bg-fener-yellow/20 font-semibold text-fener-navy' : ''
+                    }`}
+                  >
+                    <span className="w-4 text-slate-400">{s.rank}</span>
+                    <TeamBadge team={s.team} size={20} highlight={s.team.id === FENER_ID} />
+                    <span className="flex-1 truncate">{s.team.name}</span>
+                    <span className="text-slate-400">{s.played}</span>
+                    <span className="w-6 text-right font-bold">{s.points}</span>
+                  </div>
+                ))}
+              </div>
+              {activeCompetition.knockout.length > 0 && (
+                <div>
+                  <p className="mb-1.5 text-xs uppercase tracking-wide text-slate-400">Knockout stage</p>
+                  <KnockoutMini stages={activeCompetition.knockout} />
                 </div>
-              ))}
+              )}
             </div>
           ) : (
             <Empty label="Table unavailable" />
@@ -155,6 +171,40 @@ function Record({ label, value }: { label: string; value: number }) {
     <div className="rounded-lg bg-slate-50 py-2">
       <div className="text-lg font-bold text-fener-navy">{value}</div>
       <div className="text-[10px] uppercase tracking-wide text-slate-400">{label}</div>
+    </div>
+  )
+}
+
+// Compact stage-by-stage list of Fenerbahçe's own knockout results — a
+// condensed version of Standings' KnockoutBracket, sized for the card.
+function KnockoutMini({ stages }: { stages: KnockoutStage[] }) {
+  return (
+    <div className="space-y-3">
+      {stages.map((stage) => (
+        <div key={stage.label}>
+          <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-slate-400">{stage.label}</p>
+          <div className="space-y-1">
+            {stage.fixtures.map((f) => {
+              const fenerHome = f.home.id === FENER_ID
+              const opponent = fenerHome ? f.away : f.home
+              const fenerScore = fenerHome ? f.homeScore : f.awayScore
+              const oppScore = fenerHome ? f.awayScore : f.homeScore
+              const played = fenerScore != null && oppScore != null
+              return (
+                <div key={f.id} className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm">
+                  <TeamBadge team={opponent} size={20} />
+                  <span className="flex-1 truncate">
+                    {fenerHome ? 'vs' : '@'} {opponent.name}
+                  </span>
+                  <span className="font-bold text-fener-navy">
+                    {played ? `${fenerScore}-${oppScore}` : 'vs'}
+                  </span>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      ))}
     </div>
   )
 }
