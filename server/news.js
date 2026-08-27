@@ -81,6 +81,15 @@ export async function fetchNews() {
       }
     })
     .filter((it) => it.title && it.link)
+    // Google News RSS orders by relevance, not strictly by time — sort newest
+    // first so every consumer (Home preview, News page) gets a consistent,
+    // actually-chronological default. Undated items sort last.
+    .sort((a, b) => {
+      if (!a.publishedAt && !b.publishedAt) return 0
+      if (!a.publishedAt) return 1
+      if (!b.publishedAt) return -1
+      return +new Date(b.publishedAt) - +new Date(a.publishedAt)
+    })
 
   cache = { at: Date.now(), items }
   return items

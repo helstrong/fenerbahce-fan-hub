@@ -84,7 +84,7 @@ cp .env.example .env
 | `VITE_SPORTSDB_FREE_TIER` | `false` | Set `true` when using the free key so the UI shows tier-limit notes. |
 | `VITE_USE_SAMPLE` | — | Set `true` to force sample data. |
 | `VITE_LEAGUE_ID` | `4339` | Turkish Süper Lig |
-| `VITE_SEASON` | `2025-2026` | Season, `YYYY-YYYY` format |
+| `VITE_SEASON` | auto-detected from today's date | Only set to pin a specific season (`YYYY-YYYY` format) instead of the current one. |
 | `VITE_TEAM_ID` | `133807` | Fenerbahçe |
 
 Free-tier notes & limitations (the app surfaces everything the free tier offers and
