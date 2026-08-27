@@ -391,6 +391,14 @@ export async function fetchCompetitionTables(
 }
 
 // ---- Squad (bio only, ~10 players on the free tier) ---------------------
+// lookup_all_players.php mixes coaching staff into the roster (e.g. Ismail
+// Kartal, Dirk Kuyt) with no real strPosition, so they'd otherwise fall
+// through to the Midfielder default below. Filter them out by role instead.
+const isCoachingStaff = (p?: string): boolean => {
+  const s = (p ?? '').toLowerCase()
+  return s.includes('coach') || s.includes('manager')
+}
+
 const mapPosition = (p?: string): Position => {
   const s = (p ?? '').toLowerCase()
   if (s.includes('keeper') || s.includes('goal')) return 'Goalkeeper'
@@ -415,7 +423,7 @@ function ageFrom(dateBorn?: string): number {
 
 export async function fetchPlayers(): Promise<Player[]> {
   const { player } = await request('lookup_all_players.php', { id: TEAM_ID })
-  const roster: any[] = player ?? []
+  const roster: any[] = (player ?? []).filter((p: any) => !isCoachingStaff(p.strPosition))
   return roster.map((p) => ({
     id: String(p.idPlayer),
     name: p.strPlayer,

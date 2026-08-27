@@ -15,7 +15,17 @@ export const SPORTSDB_BASE = env.VITE_SPORTSDB_BASE?.trim() || '/api/sportsdb'
 
 export const LEAGUE_ID = Number(env.VITE_LEAGUE_ID ?? 4339) // Turkish Süper Lig
 export const TEAM_ID = Number(env.VITE_TEAM_ID ?? 133807) // Fenerbahçe
-export const SEASON = env.VITE_SEASON?.trim() || '2025-2026' // format: YYYY-YYYY
+
+// Süper Lig seasons run ~Jul → Jun, so before July we're still in the season
+// that started the previous calendar year. Recomputed from the clock instead
+// of a hardcoded year so the default never needs a manual yearly bump.
+function currentSeason(): string {
+  const now = new Date()
+  const startYear = now.getMonth() >= 6 ? now.getFullYear() : now.getFullYear() - 1
+  return `${startYear}-${startYear + 1}`
+}
+
+export const SEASON = env.VITE_SEASON?.trim() || currentSeason() // format: YYYY-YYYY
 
 export const USE_LIVE = env.VITE_USE_SAMPLE?.trim() !== 'true'
 
