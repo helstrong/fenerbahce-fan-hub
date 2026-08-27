@@ -1,4 +1,4 @@
-import { CACHE_TTL_MS, FENER_ID, IS_FREE_KEY, LEAGUE_ID, USE_LIVE } from './config'
+import { CACHE_TTL_MS, FENER_ID, IS_FREE_KEY, LEAGUE_ID, SEASON, USE_LIVE } from './config'
 import {
   fetchClub,
   fetchCompetitionEvents,
@@ -30,7 +30,15 @@ export { roundLabel }
 
 export { FENER_ID, IS_FREE_KEY }
 
-const CACHE_KEY = 'fener-fan-hub:data:v4'
+// Season-scoped on purpose: the cached payload holds standings for whichever
+// season was current when it was written, but nothing in it records that. When
+// the season rolls over (SEASON is derived from the date, so this happens on
+// its own every July) an entry written under the old season would otherwise be
+// served as if it were current — the hero stats and form card would show the
+// previous campaign's final table while the season-scoped Table card, which
+// doesn't read this cache, correctly showed the new one. Keying by season makes
+// the rollover self-healing instead of a stale-until-TTL bug.
+const CACHE_KEY = `fener-fan-hub:data:v5:${SEASON}`
 
 function sampleData(): AppData {
   const byDateAsc = (a: Fixture, b: Fixture) => +new Date(a.date) - +new Date(b.date)
@@ -81,6 +89,11 @@ function readCache(): AppData | null {
 
 function writeCache(data: AppData) {
   try {
+    // The key now varies by season, so previous seasons' entries (and older
+    // schema versions) would linger indefinitely. Drop them as we write.
+    for (const key of Object.keys(localStorage))
+      if (key.startsWith('fener-fan-hub:data:') && key !== CACHE_KEY) localStorage.removeItem(key)
+
     localStorage.setItem(CACHE_KEY, JSON.stringify({ t: Date.now(), v: data }))
   } catch {
     /* ignore quota / private-mode errors */
