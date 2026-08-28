@@ -22,22 +22,19 @@ interface LayoutProps {
 
 export default function Layout({ children, live = false, onRefresh, refreshing = false, badge }: LayoutProps) {
   return (
-    <div className="min-h-screen pb-20 md:pb-0">
-      <header className="sticky top-0 z-20 bg-fener-navy text-white shadow-lg">
-        <div className="mx-auto flex max-w-5xl items-center gap-3 px-4 py-3">
+    <div className="min-h-screen pb-24 md:pb-0">
+      <header className="sticky top-0 z-30 border-b border-white/10 bg-fener-navy-dark/90 backdrop-blur-md">
+        <div className="mx-auto flex max-w-5xl items-center gap-2.5 px-4 py-3">
           {badge ? (
-            <img src={badge} alt="Fenerbahçe crest" className="h-9 w-9 shrink-0 object-contain" />
+            <img src={badge} alt="Fenerbahçe crest" className="h-7 w-7 shrink-0 object-contain" />
           ) : (
-            <Crest className="h-9 w-9" />
+            <Crest className="h-7 w-7 shrink-0" />
           )}
-          <div className="flex flex-col leading-tight">
-            <span className="text-base font-bold tracking-wide">Fenerbahçe Fan Hub</span>
-            <span className="text-[11px] text-fener-yellow">
-              Since 1907 · {live ? 'Live data' : 'Sample data'}
-            </span>
-          </div>
+          <span className="font-display text-[15px] font-semibold uppercase tracking-[0.14em]">
+            Fan Hub
+          </span>
 
-          <div className="ml-auto flex items-center gap-1">
+          <div className="ml-auto flex items-center gap-2.5">
             <nav className="hidden gap-1 md:flex">
               {nav.map((n) => (
                 <NavLink
@@ -45,8 +42,8 @@ export default function Layout({ children, live = false, onRefresh, refreshing =
                   to={n.to}
                   end={n.end}
                   className={({ isActive }) =>
-                    `rounded-lg px-3 py-2 text-sm font-medium transition ${
-                      isActive ? 'bg-fener-yellow text-fener-navy' : 'text-white/80 hover:bg-white/10'
+                    `rounded-lg px-3 py-1.5 text-sm font-medium transition ${
+                      isActive ? 'bg-fener-yellow text-fener-navy' : 'text-white/70 hover:bg-white/10'
                     }`
                   }
                 >
@@ -55,16 +52,29 @@ export default function Layout({ children, live = false, onRefresh, refreshing =
               ))}
             </nav>
 
+            {/* Whether the numbers on screen came from the live provider or the
+                bundled sample set — worth stating plainly, not just implying. */}
+            <span
+              className={`flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.08em] ${
+                live ? 'text-fener-yellow' : 'text-white/45'
+              }`}
+            >
+              <span
+                className={`h-1.5 w-1.5 rounded-full ${live ? 'bg-fener-yellow' : 'bg-white/40'}`}
+              />
+              {live ? 'Live' : 'Sample'}
+            </span>
+
             {onRefresh && (
               <button
                 onClick={onRefresh}
                 disabled={refreshing}
                 title="Refresh data"
                 aria-label="Refresh data"
-                className="rounded-lg p-2 text-white/80 transition hover:bg-white/10 disabled:opacity-50"
+                className="flex h-[30px] w-[30px] items-center justify-center rounded-[9px] bg-white/[0.08] text-white/75 transition hover:bg-white/[0.16] disabled:opacity-50"
               >
                 <svg
-                  className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`}
+                  className={`h-3.5 w-3.5 ${refreshing ? 'animate-spin' : ''}`}
                   viewBox="0 0 24 24"
                   fill="none"
                   stroke="currentColor"
@@ -83,23 +93,25 @@ export default function Layout({ children, live = false, onRefresh, refreshing =
 
       <main className="mx-auto max-w-5xl px-4 py-6">{children}</main>
 
-      <nav className="fixed bottom-0 left-0 right-0 z-20 flex border-t border-slate-200 bg-white md:hidden">
+      <nav className="fixed bottom-0 left-0 right-0 z-30 flex border-t border-white/10 bg-fener-navy-deep/95 pb-1.5 backdrop-blur-md md:hidden">
         {nav.map((n) => (
           <NavLink
             key={n.to}
             to={n.to}
             end={n.end}
             className={({ isActive }) =>
-              `flex flex-1 flex-col items-center gap-1 py-2 text-[11px] font-medium ${
-                isActive ? 'text-fener-navy' : 'text-slate-400'
+              `flex flex-1 flex-col items-center gap-1 pb-1.5 pt-2.5 text-[10px] font-semibold ${
+                isActive ? 'text-fener-yellow' : 'text-white/45'
               }`
             }
           >
             {({ isActive }) => (
               <>
-                <Icon name={n.icon} className="h-5 w-5" />
+                <Icon name={n.icon} className="h-[19px] w-[19px]" />
                 <span>{n.label}</span>
-                <span className={`h-0.5 w-6 rounded-full ${isActive ? 'bg-fener-yellow' : 'bg-transparent'}`} />
+                <span
+                  className={`h-0.5 w-[18px] rounded-full ${isActive ? 'bg-fener-yellow' : 'bg-transparent'}`}
+                />
               </>
             )}
           </NavLink>

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import MatchCard from '../components/MatchCard'
+import PageHeader from '../components/PageHeader'
 import SeasonSelect from '../components/SeasonSelect'
 import { useSeason } from '../data/SeasonContext'
 
@@ -18,46 +19,43 @@ export default function Fixtures() {
   const list = tab === 'results' ? results : upcoming
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-bold text-fener-navy">Fixtures &amp; Results</h1>
+    <div>
+      <PageHeader title="Fixtures">
         <SeasonSelect />
-      </div>
+      </PageHeader>
 
-      <div className="inline-flex rounded-xl bg-slate-100 p-1">
+      <div className="mb-4 flex gap-1.5 rounded-xl bg-white/[0.07] p-1">
         {(['upcoming', 'results'] as const).map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
-            className={`rounded-lg px-4 py-1.5 text-sm font-semibold capitalize transition ${
-              tab === t ? 'bg-fener-navy text-white' : 'text-slate-500'
+            aria-pressed={tab === t}
+            className={`flex-1 rounded-[9px] py-2 text-xs font-semibold uppercase tracking-[0.06em] transition ${
+              tab === t ? 'bg-fener-yellow text-fener-navy' : 'text-white/55 hover:text-white'
             }`}
           >
-            {t}
-            <span className="ml-1.5 text-xs opacity-70">
-              {t === 'results' ? results.length : upcoming.length}
-            </span>
+            {t} <span className="opacity-60">{t === 'results' ? results.length : upcoming.length}</span>
           </button>
         ))}
       </div>
 
       {status === 'error' ? (
-        <p className="text-sm text-red-500">Couldn’t load fixtures for this season.</p>
+        <p className="text-sm text-result-loss">Couldn’t load fixtures for this season.</p>
       ) : list.length ? (
-        <div className="grid gap-3 md:grid-cols-2">
+        <div className="grid gap-2.5 md:grid-cols-2">
           {list.map((f) => (
             <MatchCard key={f.id} fixture={f} />
           ))}
         </div>
       ) : (
-        <p className="text-sm text-slate-400">
+        <p className="text-sm text-white/40">
           {status === 'loading' ? 'Loading fixtures…' : `No ${tab} matches this season.`}
         </p>
       )}
 
-      <p className="text-xs text-slate-400">
-        Includes Süper Lig, Turkish Cup, European ties and friendlies. Friendlies for
-        past seasons may be incomplete.
+      <p className="mt-4 text-[11px] leading-relaxed text-white/35">
+        Includes Süper Lig, Turkish Cup, European ties and friendlies. Friendlies for past seasons
+        may be incomplete.
       </p>
     </div>
   )

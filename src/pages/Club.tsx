@@ -1,4 +1,6 @@
-import { Card, SectionTitle } from '../components/Card'
+import { SectionTitle } from '../components/Card'
+import Crest from '../components/Crest'
+import Stripes from '../components/Stripes'
 import type { AppData, ClubProfile, Kit } from '../data/types'
 
 const href = (url?: string) => (url ? (/^https?:\/\//.test(url) ? url : `https://${url}`) : undefined)
@@ -8,61 +10,55 @@ export default function Club({ data }: { data: AppData }) {
 
   if (!club) {
     return (
-      <div className="space-y-4">
-        <h1 className="text-2xl font-bold text-fener-navy">Club</h1>
-        <p className="text-sm text-slate-400">Club information is unavailable right now.</p>
+      <div>
+        <h1 className="font-display text-3xl font-bold uppercase leading-none">Club</h1>
+        <p className="mt-4 text-sm text-white/40">Club information is unavailable right now.</p>
       </div>
     )
   }
 
-  const facts: [string, string][] = []
-  if (club.formedYear) facts.push(['Founded', club.formedYear])
-  if (club.stadium) facts.push(['Stadium', club.stadium])
-  if (club.capacity) facts.push(['Capacity', Number(club.capacity).toLocaleString()])
-  if (club.location) facts.push(['Location', club.location])
-  if (club.country) facts.push(['Country', club.country])
-  if (club.nicknames) facts.push(['Nicknames', club.nicknames])
+  // Pinned to en-GB like the date formatting in lib/format — the default locale
+  // renders 53715 as "53.715" on a European machine, which reads as a decimal.
+  const capacity =
+    club.capacity && Number.isFinite(Number(club.capacity))
+      ? Number(club.capacity).toLocaleString('en-GB')
+      : club.capacity
+
+  const where = [club.location, club.country].filter(Boolean).join(', ')
 
   return (
     <div className="space-y-6">
       <Hero club={club} />
 
       {club.description && (
-        <Card>
-          <SectionTitle>About</SectionTitle>
-          <p className="text-sm leading-relaxed text-slate-600">{club.description}</p>
-        </Card>
+        <p className="text-[13px] leading-relaxed text-white/70 text-pretty">{club.description}</p>
       )}
 
-      <div className="grid gap-4 md:grid-cols-2">
-        {facts.length > 0 && (
-          <Card>
-            <SectionTitle>Club facts</SectionTitle>
-            <dl className="space-y-2">
-              {facts.map(([label, value]) => (
-                <div key={label} className="flex justify-between gap-3 text-sm">
-                  <dt className="text-slate-400">{label}</dt>
-                  <dd className="truncate text-right font-medium text-fener-navy">{value}</dd>
-                </div>
-              ))}
-            </dl>
-          </Card>
-        )}
+      <section>
+        <SectionTitle>Club facts</SectionTitle>
+        <div className="grid grid-cols-2 gap-2">
+          {club.formedYear && <BigFact value={club.formedYear} label="Founded" />}
+          {capacity && <BigFact value={capacity} label="Capacity" />}
+          {club.stadium && (
+            <WideFact value={club.stadium} label={where ? `Stadium · ${where}` : 'Stadium'} />
+          )}
+          {club.nicknames && <WideFact value={club.nicknames} label="Nicknames" />}
+        </div>
+      </section>
 
-        {club.competitions && club.competitions.length > 0 && (
-          <Card>
-            <SectionTitle>Competes in</SectionTitle>
-            <ul className="space-y-2">
-              {club.competitions.map((c) => (
-                <li key={c} className="flex items-center gap-2 text-sm text-slate-700">
-                  <span className="h-1.5 w-1.5 rounded-full bg-fener-yellow-dark" />
-                  {c}
-                </li>
-              ))}
-            </ul>
-          </Card>
-        )}
-      </div>
+      {club.competitions && club.competitions.length > 0 && (
+        <section>
+          <SectionTitle>Competes in</SectionTitle>
+          <div className="flex flex-col gap-px overflow-hidden rounded-xl bg-white/[0.09]">
+            {club.competitions.map((c) => (
+              <div key={c} className="flex items-center gap-2.5 bg-fener-navy px-3.5 py-3 text-[13px]">
+                <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-fener-yellow" />
+                {c}
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       <Socials club={club} />
       <Fanart images={club.fanart} />
@@ -73,25 +69,55 @@ export default function Club({ data }: { data: AppData }) {
 
 function Hero({ club }: { club: ClubProfile }) {
   return (
-    <section className="overflow-hidden rounded-2xl bg-fener-navy text-white shadow-lg">
+    <section className="relative -mx-4 -mt-6 overflow-hidden border-b-2 border-fener-yellow bg-gradient-to-br from-fener-navy-glow via-fener-navy to-fener-navy-dark px-5 py-7 md:mx-0 md:mt-0 md:rounded-2xl md:border-b-0 md:border-l-2">
+      {/* The club banner, when there is one, sits behind the gradient as texture
+          rather than as its own band above the crest. */}
       {club.banner && (
-        <img src={club.banner} alt="" className="h-32 w-full object-cover opacity-80 sm:h-44" />
+        <img src={club.banner} alt="" className="absolute inset-0 h-full w-full object-cover opacity-20" />
       )}
-      <div className="flex items-center gap-4 p-5">
-        {club.badge && (
-          <img
-            src={club.badge}
-            alt={`${club.name} crest`}
-            className="h-16 w-16 shrink-0 object-contain sm:h-20 sm:w-20"
-          />
+      <Stripes className="opacity-10" />
+
+      <div className="relative flex items-center gap-4">
+        {club.badge ? (
+          <img src={club.badge} alt={`${club.name} crest`} className="h-16 w-16 shrink-0 object-contain sm:h-[72px] sm:w-[72px]" />
+        ) : (
+          <Crest className="h-16 w-16 shrink-0 sm:h-[72px] sm:w-[72px]" />
         )}
         <div className="min-w-0">
-          <h1 className="text-2xl font-bold">{club.name}</h1>
-          {club.altName && <p className="text-sm text-fener-yellow">{club.altName}</p>}
-          {club.formedYear && <p className="text-xs text-white/70">Est. {club.formedYear}</p>}
+          <h1 className="font-display text-[34px] font-bold uppercase leading-none tracking-[0.02em]">
+            {club.name}
+          </h1>
+          {club.altName && <p className="mt-1.5 text-xs font-medium text-fener-yellow">{club.altName}</p>}
+          {(club.formedYear || club.location) && (
+            <p className="mt-1 text-[11px] text-white/50">
+              {[club.formedYear && `Est. ${club.formedYear}`, club.location].filter(Boolean).join(' · ')}
+            </p>
+          )}
         </div>
       </div>
     </section>
+  )
+}
+
+function BigFact({ value, label }: { value: string; label: string }) {
+  return (
+    <div className="rounded-xl border border-white/10 bg-white/[0.06] p-3">
+      <div className="font-display text-[26px] font-bold leading-none text-fener-yellow">{value}</div>
+      <div className="mt-1.5 text-[9px] font-semibold uppercase tracking-[0.12em] text-white/45">
+        {label}
+      </div>
+    </div>
+  )
+}
+
+function WideFact({ value, label }: { value: string; label: string }) {
+  return (
+    <div className="col-span-2 rounded-xl border border-white/10 bg-white/[0.06] p-3">
+      <div className="text-sm font-semibold leading-snug">{value}</div>
+      <div className="mt-1.5 text-[9px] font-semibold uppercase tracking-[0.12em] text-white/45">
+        {label}
+      </div>
+    </div>
   )
 }
 
@@ -107,60 +133,68 @@ function Socials({ club }: { club: ClubProfile }) {
   if (!present.length) return null
 
   return (
-    <Card>
+    <section>
       <SectionTitle>Official links</SectionTitle>
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap gap-1.5">
         {present.map(([label, url]) => (
           <a
             key={label}
             href={href(url)}
             target="_blank"
             rel="noopener noreferrer"
-            className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-semibold text-fener-navy transition hover:bg-fener-yellow"
+            className="rounded-full bg-white/[0.08] px-3.5 py-2 text-[11px] font-semibold transition hover:bg-fener-yellow hover:text-fener-navy"
           >
             {label} ↗
           </a>
         ))}
       </div>
-    </Card>
+    </section>
   )
 }
 
 function Fanart({ images }: { images?: string[] }) {
   if (!images || !images.length) return null
   return (
-    <div>
+    <section>
       <SectionTitle>Fan art</SectionTitle>
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+      <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
         {images.map((src) => (
           <img
             key={src}
             src={src}
             alt=""
             loading="lazy"
-            className="aspect-video w-full rounded-xl object-cover shadow-sm"
+            className="aspect-video w-full rounded-xl object-cover"
           />
         ))}
       </div>
-    </div>
+    </section>
   )
 }
 
 function Kits({ kits }: { kits: Kit[] }) {
   if (!kits.length) return null
   return (
-    <div>
+    <section>
       <SectionTitle>Kits</SectionTitle>
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4">
         {kits.map((k) => (
-          <div key={`${k.season}-${k.type}`} className="rounded-xl border border-slate-200 bg-white p-3 text-center shadow-sm">
-            <img src={k.image} alt={`${k.season} ${k.type} kit`} loading="lazy" className="mx-auto h-32 object-contain" />
-            <p className="mt-2 text-[11px] font-semibold text-slate-500">
+          <div
+            key={`${k.season}-${k.type}`}
+            className="rounded-xl border border-white/10 bg-fener-navy p-3 text-center"
+          >
+            <img
+              src={k.image}
+              alt={`${k.season} ${k.type} kit`}
+              loading="lazy"
+              className="mx-auto h-28 object-contain"
+            />
+            <p className="mt-2 text-[10px] font-semibold uppercase tracking-[0.08em] text-white/45">
               {k.season} · {k.type}
             </p>
           </div>
         ))}
       </div>
-    </div>
+    </section>
   )
 }

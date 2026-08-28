@@ -28,8 +28,10 @@ export default function TeamBadge({
   return (
     <span
       style={style}
-      className={`flex shrink-0 items-center justify-center rounded-full text-[11px] font-bold ${
-        highlight ? 'bg-fener-navy text-fener-yellow' : 'bg-slate-100 text-slate-600'
+      className={`flex shrink-0 items-center justify-center rounded-full font-display text-[13px] font-bold tracking-[0.06em] ${
+        highlight
+          ? 'bg-fener-yellow text-fener-navy'
+          : 'border border-white/[0.18] bg-white/10 text-white'
       }`}
     >
       {team.short}

@@ -1,16 +1,17 @@
 import { Link } from 'react-router-dom'
-import { Card, SectionTitle } from '../components/Card'
+import { SectionTitle, sectionLinkClass } from '../components/Card'
 import CompetitionSelect from '../components/CompetitionSelect'
-import Crest from '../components/Crest'
 import FormGuide from '../components/FormGuide'
-import MatchCard from '../components/MatchCard'
+import { ResultStrip, TieRow } from '../components/ResultStrip'
 import SeasonSelect from '../components/SeasonSelect'
+import Stripes from '../components/Stripes'
 import TeamBadge from '../components/TeamBadge'
-import { FENER_ID, lastResult, nextMatch, standingFor } from '../data/api'
+import { FENER_ID, IS_FREE_KEY, lastResult, nextMatch, roundLabel, standingFor } from '../data/api'
 import type { KnockoutStage } from '../data/api'
 import { useSeason, useSelectedCompetition } from '../data/SeasonContext'
-import type { AppData } from '../data/types'
-import { fmtDate } from '../lib/format'
+import type { AppData, Fixture, Standing } from '../data/types'
+import { fmtDate, fmtMatchTime, ordinal } from '../lib/format'
+import { useCountdown } from '../lib/useCountdown'
 
 export default function Home({ data }: { data: AppData }) {
   const last = lastResult(data)
@@ -24,222 +25,286 @@ export default function Home({ data }: { data: AppData }) {
 
   return (
     <div className="space-y-6">
-      <section className="flex flex-col gap-5 rounded-2xl bg-fener-navy p-5 text-white md:flex-row md:items-center">
-        <div className="flex items-center gap-4">
-          {data.club?.badge ? (
-            <img src={data.club.badge} alt={`${data.club.name} crest`} className="h-16 w-16 shrink-0 object-contain" />
-          ) : (
-            <Crest className="h-16 w-16 shrink-0" />
-          )}
-          <div>
-            <p className="text-sm font-medium text-fener-yellow">Forza Fener 💛💙</p>
-            <h1 className="text-2xl font-bold">Your club, all in one place</h1>
+      <MatchdayHero fixture={next} />
+
+      {last && (
+        <section>
+          <SectionTitle
+            action={
+              <span className="shrink-0 text-[11px] text-white/40">
+                {[last.competition, roundLabel(last)].filter(Boolean).join(' · ')}
+              </span>
+            }
+          >
+            Last result
+          </SectionTitle>
+          <ResultStrip fixture={last} />
+        </section>
+      )}
+
+      {fener && <SeasonStanding standing={fener} />}
+
+      <section>
+        <SectionTitle
+          action={
+            <Link to="/standings" className={sectionLinkClass}>
+              Full table →
+            </Link>
+          }
+        >
+          {activeCompetition?.competitionName ?? 'Table'}
+        </SectionTitle>
+
+        <div className="mb-2.5 flex flex-wrap items-center gap-2">
+          <SeasonSelect />
+          <CompetitionSelect
+            competitions={competitions}
+            value={activeCompetitionId}
+            onChange={setActiveCompetitionId}
+          />
+        </div>
+
+        {seasonStatus === 'error' ? (
+          <Empty label="Couldn’t load the table" />
+        ) : !competitions.length ? (
+          <Empty label={seasonStatus === 'loading' ? 'Loading…' : 'No competitions this season'} />
+        ) : activeCompetition?.standings.length ? (
+          <div className="space-y-3">
+            <MiniTable standings={activeCompetition.standings.slice(0, 6)} />
+            {IS_FREE_KEY && activeCompetition.standings.length <= 6 && (
+              <p className="text-[11px] text-white/35">
+                The free data tier returns only the top of the table.
+              </p>
+            )}
+            {activeCompetition.knockout.length > 0 && <KnockoutMini stages={activeCompetition.knockout} />}
           </div>
-        </div>
-        <div className="flex flex-wrap gap-3 md:ml-auto">
-          <HeroStat label="League position" value={fener ? `#${fener.rank}` : '–'} />
-          <HeroStat label="Points" value={fener ? `${fener.points}` : '–'} />
-          <HeroStat label="Played" value={fener ? `${fener.played}` : '–'} />
-          <HeroStat label="Goals for" value={fener ? `${fener.gf}` : '–'} />
-        </div>
+        ) : activeCompetition?.knockout.length ? (
+          <div className="space-y-3">
+            {activeCompetition.note && <p className="text-[11px] text-white/35">{activeCompetition.note}</p>}
+            <KnockoutMini stages={activeCompetition.knockout} />
+          </div>
+        ) : (
+          <Empty label={activeCompetition?.note ?? 'Table unavailable'} />
+        )}
       </section>
 
-      <div className="grid gap-4 md:grid-cols-2">
-        <div>
-          <SectionTitle>Last result</SectionTitle>
-          {last ? <MatchCard fixture={last} /> : <Empty label="No results yet" />}
-        </div>
-        <div>
-          <SectionTitle>Next match</SectionTitle>
-          {next ? <MatchCard fixture={next} /> : <Empty label="No upcoming fixtures" />}
-        </div>
-      </div>
-
-      <div className="grid gap-4 md:grid-cols-2">
-        <Card>
-          <SectionTitle
-            action={
-              <Link to="/standings" className="text-xs font-semibold text-fener-navy">
-                Full table →
-              </Link>
-            }
-          >
-            Table
-          </SectionTitle>
-
-          <div className="mb-3 flex flex-wrap items-center gap-2">
-            <SeasonSelect />
-            <CompetitionSelect
-              competitions={competitions}
-              value={activeCompetitionId}
-              onChange={setActiveCompetitionId}
-            />
-          </div>
-
-          {seasonStatus === 'error' ? (
-            <Empty label="Couldn’t load the table" />
-          ) : !competitions.length ? (
-            <Empty label={seasonStatus === 'loading' ? 'Loading…' : 'No competitions this season'} />
-          ) : activeCompetition?.source === 'unavailable' ? (
-            activeCompetition.knockout.length ? (
-              <div className="space-y-3">
-                {activeCompetition.note && <p className="text-xs text-slate-400">{activeCompetition.note}</p>}
-                <KnockoutMini stages={activeCompetition.knockout} />
-              </div>
-            ) : (
-              <Empty label={activeCompetition.note ?? 'No table available'} />
-            )
-          ) : activeCompetition?.standings.length ? (
-            <div className="space-y-4">
-              <div className="space-y-1">
-                {activeCompetition.standings.slice(0, 6).map((s) => (
-                  <div
-                    key={s.team.id}
-                    className={`flex items-center gap-3 rounded-lg px-2 py-1.5 text-sm ${
-                      s.team.id === FENER_ID ? 'bg-fener-yellow/20 font-semibold text-fener-navy' : ''
-                    }`}
-                  >
-                    <span className="w-4 text-slate-400">{s.rank}</span>
-                    <TeamBadge team={s.team} size={20} highlight={s.team.id === FENER_ID} />
-                    <span className="flex-1 truncate">{s.team.name}</span>
-                    <span className="text-slate-400">{s.played}</span>
-                    <span className="w-6 text-right font-bold">{s.points}</span>
-                  </div>
-                ))}
-              </div>
-              {activeCompetition.knockout.length > 0 && (
-                <div>
-                  <p className="mb-1.5 text-xs uppercase tracking-wide text-slate-400">Knockout stage</p>
-                  <KnockoutMini stages={activeCompetition.knockout} />
-                </div>
-              )}
-            </div>
-          ) : (
-            <Empty label="Table unavailable" />
-          )}
-        </Card>
-
-        <Card>
-          <SectionTitle
-            action={
-              <Link to="/club" className="text-xs font-semibold text-fener-navy">
-                Club →
-              </Link>
-            }
-          >
-            Form &amp; record
-          </SectionTitle>
-          {fener ? (
-            <div className="space-y-4">
-              <div>
-                <p className="mb-1.5 text-xs uppercase tracking-wide text-slate-400">Last 5</p>
-                <FormGuide form={fener.form} />
-              </div>
-              <div className="grid grid-cols-3 gap-2 text-center">
-                <Record label="Won" value={fener.won} />
-                <Record label="Drawn" value={fener.drawn} />
-                <Record label="Lost" value={fener.lost} />
-              </div>
-              <p className="text-xs text-slate-400">
-                Goal difference{' '}
-                <span className="font-semibold text-fener-navy">
-                  {fener.gf - fener.ga >= 0 ? '+' : ''}
-                  {fener.gf - fener.ga}
-                </span>{' '}
-                ({fener.gf} for, {fener.ga} against)
-              </p>
-            </div>
-          ) : (
-            <Empty label="Form unavailable" />
-          )}
-        </Card>
-      </div>
-
       {data.news.length > 0 && (
-        <div>
+        <section>
           <SectionTitle
             action={
-              <Link to="/news" className="text-xs font-semibold text-fener-navy">
+              <Link to="/news" className={sectionLinkClass}>
                 All news →
               </Link>
             }
           >
             Latest news
           </SectionTitle>
-          <div className="grid gap-3 md:grid-cols-3">
+          {/* 1px gaps over a lighter backdrop give hairline rules between items
+              without a border on each one. */}
+          <div className="flex flex-col gap-px overflow-hidden rounded-2xl bg-white/[0.09]">
             {data.news.slice(0, 3).map((n) => (
-              <a key={n.link} href={n.link} target="_blank" rel="noopener noreferrer">
-                <Card className="h-full transition hover:shadow-md">
-                  <h3 className="text-sm font-bold text-fener-navy">{n.title}</h3>
-                  <p className="mt-2 text-[11px] text-slate-400">
-                    {n.source}
-                    {n.publishedAt ? ` · ${fmtDate(n.publishedAt)}` : ''}
-                  </p>
-                </Card>
+              <a
+                key={n.link}
+                href={n.link}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="bg-fener-navy px-4 py-3.5 transition hover:bg-fener-navy-light"
+              >
+                <div className="text-sm font-semibold leading-snug text-pretty">{n.title}</div>
+                <div className="mt-1.5 text-[10px] font-medium uppercase tracking-[0.06em] text-fener-yellow">
+                  {n.source}
+                  {n.publishedAt ? ` · ${fmtDate(n.publishedAt)}` : ''}
+                </div>
               </a>
             ))}
           </div>
-        </div>
+        </section>
       )}
     </div>
   )
 }
 
-function HeroStat({ label, value }: { label: string; value: string }) {
+// The matchday panel: who's next and exactly how long until kick-off. Bleeds to
+// the screen edges on mobile the way the design does, and tucks back into the
+// content column on desktop.
+function MatchdayHero({ fixture }: { fixture?: Fixture }) {
+  const countdown = useCountdown(fixture?.date)
+
+  const shell =
+    '-mx-4 -mt-6 relative overflow-hidden border-b-2 border-fener-yellow bg-gradient-to-br from-fener-navy-glow via-fener-navy to-fener-navy-dark px-5 pb-6 pt-6 md:mx-0 md:mt-0 md:rounded-2xl md:border-b-0 md:border-l-2'
+
+  if (!fixture) {
+    return (
+      <section className={shell}>
+        <Stripes />
+        <div className="relative">
+          <p className="text-xs font-bold uppercase tracking-[0.16em] text-fener-yellow">Next match</p>
+          <p className="mt-3 text-sm text-white/60">
+            No upcoming fixtures right now — the schedule for the next round hasn’t been published yet.
+          </p>
+        </div>
+      </section>
+    )
+  }
+
   return (
-    <div className="min-w-[84px] rounded-xl bg-white/10 px-4 py-2.5 text-center">
-      <div className="text-2xl font-bold leading-tight">{value}</div>
-      <div className="mt-0.5 text-[11px] text-white/70">{label}</div>
+    <section className={shell}>
+      <Stripes />
+
+      <div className="relative flex items-baseline justify-between gap-3">
+        <span className="text-xs font-bold uppercase tracking-[0.16em] text-fener-yellow">
+          {countdown?.started ? 'Kicking off' : 'Next match'}
+        </span>
+        <span className="truncate text-[11px] font-medium uppercase tracking-[0.06em] text-white/55">
+          {[fixture.competition, roundLabel(fixture)].filter(Boolean).join(' · ')}
+        </span>
+      </div>
+
+      <div className="relative mt-5 grid grid-cols-[1fr_auto_1fr] items-center gap-2.5">
+        <HeroSide team={fixture.home} label="Home" />
+        <div className="font-display text-[26px] font-bold tracking-[0.04em] text-white/30">VS</div>
+        <HeroSide team={fixture.away} label="Away" />
+      </div>
+
+      {countdown && (
+        <div className="relative mt-5 grid grid-cols-4 gap-1.5">
+          <CountdownCell value={countdown.days} label="Days" />
+          <CountdownCell value={countdown.hours} label="Hrs" />
+          <CountdownCell value={countdown.minutes} label="Min" />
+          <CountdownCell value={countdown.seconds} label="Sec" />
+        </div>
+      )}
+
+      <div className="relative mt-3.5 flex items-center justify-between gap-3 text-[11px] font-medium text-white/60">
+        <span>{fmtMatchTime(fixture.date)}</span>
+        {fixture.venue && <span className="truncate text-right">{fixture.venue}</span>}
+      </div>
+    </section>
+  )
+}
+
+function HeroSide({ team, label }: { team: Fixture['home']; label: string }) {
+  return (
+    <div className="flex min-w-0 flex-col items-center gap-2">
+      <TeamBadge team={team} size={52} highlight={team.id === FENER_ID} />
+      <span className="line-clamp-2 text-center text-[13px] font-semibold">{team.name}</span>
+      <span className="text-[10px] font-medium uppercase tracking-[0.1em] text-white/45">{label}</span>
     </div>
   )
 }
 
-function Record({ label, value }: { label: string; value: number }) {
+function CountdownCell({ value, label }: { value: string; label: string }) {
   return (
-    <div className="rounded-lg bg-slate-50 py-2">
-      <div className="text-lg font-bold text-fener-navy">{value}</div>
-      <div className="text-[10px] uppercase tracking-wide text-slate-400">{label}</div>
+    <div className="rounded-[10px] border border-white/[0.08] bg-black/[0.28] py-2.5 text-center">
+      <div className="font-display text-[32px] font-bold leading-none text-fener-yellow">{value}</div>
+      <div className="mt-1 text-[9px] font-semibold uppercase tracking-[0.14em] text-white/50">
+        {label}
+      </div>
     </div>
   )
 }
 
-// Compact stage-by-stage list of Fenerbahçe's own knockout results — a
-// condensed version of Standings' KnockoutBracket, sized for the card.
-function KnockoutMini({ stages }: { stages: KnockoutStage[] }) {
+// Position, points and goal difference at a glance, with the record and form
+// underneath — the numbers the hero used to carry before matchday took its place.
+function SeasonStanding({ standing }: { standing: Standing }) {
+  const gd = standing.gf - standing.ga
+
   return (
-    <div className="space-y-3">
-      {stages.map((stage) => (
-        <div key={stage.label}>
-          <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-slate-400">{stage.label}</p>
-          <div className="space-y-1">
-            {stage.fixtures.map((f) => {
-              const fenerHome = f.home.id === FENER_ID
-              const opponent = fenerHome ? f.away : f.home
-              const fenerScore = fenerHome ? f.homeScore : f.awayScore
-              const oppScore = fenerHome ? f.awayScore : f.homeScore
-              const played = fenerScore != null && oppScore != null
-              return (
-                <div key={f.id} className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm">
-                  <TeamBadge team={opponent} size={20} />
-                  <span className="flex-1 truncate">
-                    {fenerHome ? 'vs' : '@'} {opponent.name}
-                  </span>
-                  <span className="font-bold text-fener-navy">
-                    {played ? `${fenerScore}-${oppScore}` : 'vs'}
-                  </span>
-                </div>
-              )
-            })}
+    <section>
+      <SectionTitle>Season standing</SectionTitle>
+
+      <div className="grid grid-cols-3 gap-2">
+        <div className="rounded-xl bg-fener-yellow px-2.5 py-3 text-fener-navy">
+          <div className="font-display text-[38px] font-bold leading-[0.85]">
+            {standing.rank}
+            <span className="align-top text-xl leading-none">{ordinal(standing.rank)}</span>
+          </div>
+          <div className="mt-1.5 text-[9px] font-semibold uppercase tracking-[0.12em] opacity-65">
+            Position
           </div>
         </div>
-      ))}
+        <StatTile value={String(standing.points)} label="Points" />
+        <StatTile value={`${gd >= 0 ? '+' : ''}${gd}`} label="Goal diff" />
+      </div>
+
+      <div className="mt-2 flex flex-wrap items-center gap-x-2.5 gap-y-2 rounded-xl bg-white/5 px-3 py-2.5">
+        <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-white/45">
+          Last 5
+        </span>
+        <FormGuide form={standing.form} />
+        <span className="ml-auto text-[11px] font-medium text-white/45">
+          {standing.won}W {standing.drawn}D {standing.lost}L
+        </span>
+      </div>
+
+      <p className="mt-2 text-[11px] text-white/35">
+        {standing.played} played · {standing.gf} scored · {standing.ga} conceded
+      </p>
+    </section>
+  )
+}
+
+function StatTile({ value, label }: { value: string; label: string }) {
+  return (
+    <div className="rounded-xl border border-white/10 bg-white/[0.07] px-2.5 py-3">
+      <div className="font-display text-[38px] font-bold leading-[0.85]">{value}</div>
+      <div className="mt-1.5 text-[9px] font-semibold uppercase tracking-[0.12em] text-white/50">
+        {label}
+      </div>
+    </div>
+  )
+}
+
+function MiniTable({ standings }: { standings: Standing[] }) {
+  return (
+    <div className="overflow-hidden rounded-2xl border border-white/[0.09] bg-white/5">
+      {standings.map((s, i) => {
+        const isFener = s.team.id === FENER_ID
+        return (
+          <div
+            key={s.team.id}
+            className={`flex items-center gap-2.5 px-3.5 py-2.5 text-sm ${
+              i > 0 ? 'border-t border-white/[0.06]' : ''
+            } ${isFener ? 'bg-fener-yellow font-semibold text-fener-navy' : ''}`}
+          >
+            <span
+              className={`w-5 shrink-0 font-display text-[15px] font-bold ${
+                isFener ? '' : 'text-white/45'
+              }`}
+            >
+              {s.rank}
+            </span>
+            <TeamBadge team={s.team} size={20} highlight={isFener} />
+            <span className="flex-1 truncate">{s.team.name}</span>
+            <span className={`w-7 shrink-0 text-center text-xs ${isFener ? 'opacity-60' : 'text-white/40'}`}>
+              {s.played}
+            </span>
+            <span className="w-8 shrink-0 text-right font-display text-[17px] font-bold">{s.points}</span>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+// Fenerbahçe's own knockout run, condensed for the dashboard — the full version
+// lives on the Tables page.
+function KnockoutMini({ stages }: { stages: KnockoutStage[] }) {
+  return (
+    <div className="space-y-2">
+      <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-white/40">
+        Knockout stage
+      </p>
+      {stages.map((stage) =>
+        stage.fixtures.map((f) => <TieRow key={f.id} fixture={f} label={stage.label} />),
+      )}
     </div>
   )
 }
 
 function Empty({ label }: { label: string }) {
   return (
-    <div className="rounded-2xl border border-dashed border-slate-200 p-6 text-center text-sm text-slate-400">
+    <div className="rounded-2xl border border-dashed border-white/15 p-6 text-center text-sm text-white/40">
       {label}
     </div>
   )

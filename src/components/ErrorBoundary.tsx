@@ -28,8 +28,8 @@ export default class ErrorBoundary extends Component<Props, State> {
     if (this.state.error) {
       return (
         <div className="flex min-h-screen flex-col items-center justify-center gap-4 p-6 text-center">
-          <p className="text-lg font-bold text-fener-navy">Something went wrong.</p>
-          <p className="max-w-sm text-sm text-slate-500">
+          <p className="text-lg font-bold text-white">Something went wrong.</p>
+          <p className="max-w-sm text-sm text-white/60">
             Please try reloading the page. If the problem persists, clearing this site's data may
             help.
           </p>
@@ -38,7 +38,7 @@ export default class ErrorBoundary extends Component<Props, State> {
               localStorage.clear()
               window.location.reload()
             }}
-            className="rounded-lg bg-fener-navy px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90"
+            className="rounded-lg bg-fener-yellow px-4 py-2 text-sm font-semibold text-fener-navy transition hover:opacity-90"
           >
             Reload
           </button>

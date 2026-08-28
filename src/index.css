@@ -3,10 +3,18 @@
 @tailwind utilities;
 
 :root {
-  color-scheme: light;
+  /* The club navy is the surface, not a header stripe — so the whole app is
+     dark and native form controls need to render dark to match. */
+  color-scheme: dark;
 }
 
 body {
-  @apply bg-slate-50 text-slate-900 antialiased;
+  @apply bg-fener-navy-dark text-white antialiased;
   font-family: Inter, system-ui, sans-serif;
+}
+
+/* Scores, ranks and counters are set in Barlow Condensed at large sizes, where
+   proportional digits visibly jitter as a countdown ticks. */
+.font-display {
+  font-variant-numeric: tabular-nums;
 }

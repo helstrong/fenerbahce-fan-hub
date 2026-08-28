@@ -1,5 +1,7 @@
 import FormGuide from '../components/FormGuide'
-import MatchCard from '../components/MatchCard'
+import PageHeader from '../components/PageHeader'
+import Pill from '../components/Pill'
+import { TieRow } from '../components/ResultStrip'
 import SeasonSelect from '../components/SeasonSelect'
 import TeamBadge from '../components/TeamBadge'
 import { FENER_ID, IS_FREE_KEY } from '../data/api'
@@ -14,34 +16,29 @@ export default function Standings() {
   const active = competitions.find((c) => c.competitionId === selectedId) ?? competitions[0]
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-bold text-fener-navy">Tables</h1>
+    <div>
+      <PageHeader title="Tables">
         <SeasonSelect />
-      </div>
+      </PageHeader>
 
       {competitions.length > 1 && (
-        <div className="flex flex-wrap gap-2">
+        <div className="mb-4 flex flex-wrap gap-1.5">
           {competitions.map((c) => (
-            <button
+            <Pill
               key={c.competitionId}
+              active={active?.competitionId === c.competitionId}
               onClick={() => setSelectedId(c.competitionId)}
-              className={`rounded-full px-3 py-1.5 text-xs font-semibold transition ${
-                active?.competitionId === c.competitionId
-                  ? 'bg-fener-navy text-white'
-                  : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
-              }`}
             >
               {c.competitionName}
-            </button>
+            </Pill>
           ))}
         </div>
       )}
 
       {status === 'error' ? (
-        <p className="text-sm text-red-500">Couldn’t load tables for this season.</p>
+        <p className="text-sm text-result-loss">Couldn’t load tables for this season.</p>
       ) : !competitions.length ? (
-        <p className="text-sm text-slate-400">
+        <p className="text-sm text-white/40">
           {status === 'loading' ? 'Loading tables…' : 'No competitions found for this season.'}
         </p>
       ) : active ? (
@@ -57,7 +54,7 @@ function CompetitionView({ competition }: { competition: CompetitionStandings })
 
   if (!hasTable && !hasKnockout) {
     return (
-      <div className="rounded-2xl border border-dashed border-slate-200 p-6 text-center text-sm text-slate-400">
+      <div className="rounded-2xl border border-dashed border-white/15 p-6 text-center text-sm text-white/40">
         {competition.note ?? 'No data available for this competition.'}
       </div>
     )
@@ -68,8 +65,13 @@ function CompetitionView({ competition }: { competition: CompetitionStandings })
       {hasTable && <LeagueTable competition={competition} />}
       {hasKnockout && (
         <div>
-          {hasTable && <h2 className="mb-3 text-lg font-bold text-fener-navy">Knockout stage</h2>}
-          {!hasTable && competition.note && <p className="mb-3 text-sm text-slate-400">{competition.note}</p>}
+          {hasTable ? (
+            <h2 className="mb-2.5 text-[13px] font-semibold uppercase tracking-[0.14em] text-white/55">
+              Knockout stage
+            </h2>
+          ) : (
+            competition.note && <p className="mb-3 text-xs leading-relaxed text-white/45">{competition.note}</p>
+          )}
           <KnockoutBracket stages={competition.knockout} />
         </div>
       )}
@@ -81,63 +83,75 @@ function LeagueTable({ competition }: { competition: CompetitionStandings }) {
   const standings = competition.standings
   const showForm = competition.source === 'official'
 
+  // The design's mobile table is #/Club/P/GD/Pts/Form. The per-result breakdown
+  // is real data the app already had, so rather than drop it, it's hidden at
+  // phone width and returns from sm: up where there's room for it.
+  const wide = 'hidden px-1.5 py-2.5 text-center sm:table-cell'
+
   return (
     <div>
-      <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm">
-        <table className="w-full min-w-[620px] text-sm">
+      <div className="overflow-hidden rounded-2xl border border-white/[0.09] bg-white/5">
+        <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-slate-200 text-xs uppercase tracking-wide text-slate-400">
-              <th className="px-4 py-3 text-left">#</th>
-              <th className="px-2 py-3 text-left">Club</th>
-              <th className="px-2 py-3 text-center">P</th>
-              <th className="px-2 py-3 text-center">W</th>
-              <th className="px-2 py-3 text-center">D</th>
-              <th className="px-2 py-3 text-center">L</th>
-              <th className="px-2 py-3 text-center">GF</th>
-              <th className="px-2 py-3 text-center">GA</th>
-              <th className="px-2 py-3 text-center">GD</th>
-              <th className="px-4 py-3 text-center">Pts</th>
-              {showForm && <th className="px-4 py-3 text-left">Form</th>}
+            <tr className="border-b border-white/10 text-[9px] font-semibold uppercase tracking-[0.1em] text-white/40">
+              <th className="px-3 py-2.5 text-left">#</th>
+              <th className="py-2.5 text-left">Club</th>
+              <th className="px-1.5 py-2.5 text-center">P</th>
+              <th className={wide}>W</th>
+              <th className={wide}>D</th>
+              <th className={wide}>L</th>
+              <th className={wide}>GF</th>
+              <th className={wide}>GA</th>
+              <th className="px-1.5 py-2.5 text-center">GD</th>
+              <th className="px-2 py-2.5 text-right">Pts</th>
+              {showForm && <th className="px-3 py-2.5 text-right">Form</th>}
             </tr>
           </thead>
           <tbody>
             {standings.map((s) => {
               const isFener = s.team.id === FENER_ID
+              const gd = s.gf - s.ga
               return (
                 <tr
                   key={s.team.id}
-                  className={`border-b border-slate-100 last:border-0 ${
-                    isFener ? 'bg-fener-yellow/20 font-semibold' : ''
+                  className={`border-b border-white/[0.06] last:border-0 ${
+                    isFener ? 'bg-fener-yellow font-semibold text-fener-navy' : ''
                   }`}
                 >
-                  <td className="px-4 py-2.5">
+                  <td className="px-3 py-2.5">
                     <span
-                      className={`inline-flex h-6 w-6 items-center justify-center rounded-full text-xs ${
-                        competition.source === 'official' && s.rank <= 4
-                          ? 'bg-fener-navy text-fener-yellow'
-                          : 'text-slate-500'
+                      className={`font-display text-[15px] font-bold ${
+                        isFener
+                          ? ''
+                          : competition.source === 'official' && s.rank <= 4
+                            ? 'text-fener-yellow'
+                            : 'text-white/45'
                       }`}
                     >
                       {s.rank}
                     </span>
                   </td>
-                  <td className={`px-2 py-2.5 ${isFener ? 'text-fener-navy' : ''}`}>
+                  <td className="py-2.5 pr-2">
                     <div className="flex items-center gap-2">
-                      <TeamBadge team={s.team} size={22} highlight={isFener} />
-                      <span className="truncate">{s.team.name}</span>
+                      <TeamBadge team={s.team} size={20} highlight={isFener} />
+                      <span className="truncate text-[13px]">{s.team.name}</span>
                     </div>
                   </td>
-                  <td className="px-2 py-2.5 text-center">{s.played}</td>
-                  <td className="px-2 py-2.5 text-center">{s.won}</td>
-                  <td className="px-2 py-2.5 text-center">{s.drawn}</td>
-                  <td className="px-2 py-2.5 text-center">{s.lost}</td>
-                  <td className="px-2 py-2.5 text-center">{s.gf}</td>
-                  <td className="px-2 py-2.5 text-center">{s.ga}</td>
-                  <td className="px-2 py-2.5 text-center">{s.gf - s.ga}</td>
-                  <td className="px-4 py-2.5 text-center font-bold text-fener-navy">{s.points}</td>
+                  <td className={`px-1.5 py-2.5 text-center text-xs ${isFener ? 'opacity-60' : 'text-white/60'}`}>
+                    {s.played}
+                  </td>
+                  <td className={`${wide} text-xs ${isFener ? 'opacity-60' : 'text-white/60'}`}>{s.won}</td>
+                  <td className={`${wide} text-xs ${isFener ? 'opacity-60' : 'text-white/60'}`}>{s.drawn}</td>
+                  <td className={`${wide} text-xs ${isFener ? 'opacity-60' : 'text-white/60'}`}>{s.lost}</td>
+                  <td className={`${wide} text-xs ${isFener ? 'opacity-60' : 'text-white/60'}`}>{s.gf}</td>
+                  <td className={`${wide} text-xs ${isFener ? 'opacity-60' : 'text-white/60'}`}>{s.ga}</td>
+                  <td className={`px-1.5 py-2.5 text-center text-xs ${isFener ? 'opacity-60' : 'text-white/60'}`}>
+                    {gd > 0 ? `+${gd}` : gd}
+                  </td>
+                  <td className="px-2 py-2.5 text-right font-display text-[17px] font-bold">{s.points}</td>
                   {showForm && (
-                    <td className="px-4 py-2.5">
-                      <FormGuide form={s.form} />
+                    <td className="px-3 py-2.5">
+                      <FormGuide form={s.form} size="sm" className="justify-end" />
                     </td>
                   )}
                 </tr>
@@ -147,10 +161,10 @@ function LeagueTable({ competition }: { competition: CompetitionStandings }) {
         </table>
       </div>
 
-      <p className="mt-3 text-xs text-slate-400">
+      <p className="mt-3 text-[11px] leading-relaxed text-white/35">
         {competition.source === 'official' ? (
           <>
-            Top 4 highlighted for continental qualification.
+            Top 4 qualify for continental football.
             {IS_FREE_KEY && standings.length <= 6
               ? ' The free data tier returns only the top of the table.'
               : ''}
@@ -168,17 +182,10 @@ function LeagueTable({ competition }: { competition: CompetitionStandings }) {
 // of every tie in the competition.
 function KnockoutBracket({ stages }: { stages: KnockoutStage[] }) {
   return (
-    <div className="space-y-4">
-      {stages.map((stage) => (
-        <div key={stage.label}>
-          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">{stage.label}</p>
-          <div className="grid gap-3 md:grid-cols-2">
-            {stage.fixtures.map((f) => (
-              <MatchCard key={f.id} fixture={f} />
-            ))}
-          </div>
-        </div>
-      ))}
+    <div className="grid gap-2.5 md:grid-cols-2">
+      {stages.map((stage) =>
+        stage.fixtures.map((f) => <TieRow key={f.id} fixture={f} label={stage.label} />),
+      )}
     </div>
   )
 }
