@@ -22,8 +22,10 @@ interface LayoutProps {
 
 export default function Layout({ children, live = false, onRefresh, refreshing = false, badge }: LayoutProps) {
   return (
-    <div className="min-h-screen pb-24 md:pb-0">
-      <header className="sticky top-0 z-30 border-b border-white/10 bg-fener-navy-dark/90 backdrop-blur-md">
+    <div className="min-h-screen pb-[calc(6rem+env(safe-area-inset-bottom))] md:pb-0">
+      {/* Installed on iOS the status bar is translucent over the page, so the
+          header carries its inset as extra top padding. */}
+      <header className="sticky top-0 z-30 border-b border-white/10 bg-fener-navy-dark/90 pt-[env(safe-area-inset-top)] backdrop-blur-md">
         <div className="mx-auto flex max-w-5xl items-center gap-2.5 px-4 py-3">
           {badge ? (
             <img src={badge} alt="Fenerbahçe crest" className="h-7 w-7 shrink-0 object-contain" />
@@ -93,7 +95,9 @@ export default function Layout({ children, live = false, onRefresh, refreshing =
 
       <main className="mx-auto max-w-5xl px-4 py-6">{children}</main>
 
-      <nav className="fixed bottom-0 left-0 right-0 z-30 flex border-t border-white/10 bg-fener-navy-deep/95 pb-1.5 backdrop-blur-md md:hidden">
+      {/* Fixed to the viewport rather than the body, so it needs its own
+          horizontal insets as well as clearance for the home indicator. */}
+      <nav className="fixed bottom-0 left-0 right-0 z-30 flex border-t border-white/10 bg-fener-navy-deep/95 pb-[calc(0.375rem+env(safe-area-inset-bottom))] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)] backdrop-blur-md md:hidden">
         {nav.map((n) => (
           <NavLink
             key={n.to}

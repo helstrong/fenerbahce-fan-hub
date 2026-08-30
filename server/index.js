@@ -79,9 +79,23 @@ app.get('/api/news', async (_req, res) => {
   }
 })
 
+// The bundled assets are content-hashed, so caching them for an hour is safe.
+// These four are not: they keep stable names across deploys, so a long max-age
+// would pin whatever shipped last. That matters most for the service worker —
+// it is the only channel for replacing itself, so if a bad one ever goes out,
+// a cached copy would keep serving the broken app until it expired.
+const NEVER_CACHE = new Set(['/sw.js', '/registerSW.js', '/manifest.webmanifest', '/index.html'])
+app.use((req, res, next) => {
+  if (NEVER_CACHE.has(req.path)) res.set('Cache-Control', 'no-cache')
+  next()
+})
+
 // Static assets, then SPA fallback for client-side routes.
 app.use(express.static(dist, { index: false, maxAge: '1h' }))
-app.get('*', (_req, res) => res.sendFile(path.join(dist, 'index.html')))
+app.get('*', (_req, res) => {
+  res.set('Cache-Control', 'no-cache')
+  res.sendFile(path.join(dist, 'index.html'))
+})
 
 app.listen(PORT, () => {
   console.log(`fenerbahce-fan-hub listening on :${PORT} (key ${KEY === '123' ? 'FREE 123' : 'set'})`)

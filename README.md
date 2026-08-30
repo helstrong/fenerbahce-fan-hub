@@ -163,6 +163,29 @@ SPORTSDB_KEY=your_key npm start   # http://localhost:3000
 key's quota (they still never see the key). The server caches upstream responses for
 10 minutes to blunt this; add rate-limiting in front (Coolify/Cloudflare) if needed.
 
+## Install as an app
+
+The site is a PWA, so it installs to a phone home screen without an app store: it
+gets its own icon, launches without browser chrome, and works offline against the
+last data it fetched. Updates ship with the next deploy — there is nothing to
+resubmit or re-download.
+
+- **Android/Chrome** — an install prompt is offered automatically.
+- **iOS/Safari** — there is no prompt; tap **Share → Add to Home Screen**. (Web push
+  on iOS also requires the app to be installed this way first.)
+
+This layer is purely additive — the site behaves exactly as before in a browser tab,
+and the service worker is disabled in dev so it can never serve a stale local build.
+
+Two things matter if you change the serving setup:
+
+- **HTTPS is required** for service workers (Coolify + a domain covers this).
+- `sw.js`, `registerSW.js`, `manifest.webmanifest` and `index.html` must be served
+  `Cache-Control: no-cache` — see `server/index.js`. These filenames are stable across
+  deploys, unlike the content-hashed bundles, so a long max-age would pin whatever
+  shipped last. The service worker is the only channel for replacing itself, so a
+  cached bad one would keep serving a broken app until it expired.
+
 ## Branding note
 
 The crest in this project is an **unofficial, stylised fan mark** (navy/yellow with
