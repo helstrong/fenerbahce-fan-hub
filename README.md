@@ -200,6 +200,24 @@ temporarily relax the `robots.txt` block so crawlers can see the `noindex` signa
 
 ## Changelog
 
+- **2026-08-30** — Installable as an app (PWA): manifest, icon set and service worker,
+  so the site adds to a phone home screen with no app store involved. Additive — a
+  browser tab is unchanged, and the service worker is off in dev. `sw.js` and friends
+  are now served `no-cache`, which is what makes a bad worker replaceable. (`822a3eb`)
+- **2026-08-28** — Navy broadcast-graphics redesign across all six screens: the club
+  colour becomes the surface rather than a header stripe, Barlow Condensed carries
+  scores and ranks, and Home is reorganised around matchday with a live countdown to
+  kick-off. Also fixes two latent bugs found on the way — neither webfont was actually
+  loading, and stadium capacity was formatted in the machine locale. (`1226fa9`)
+- **2026-08-27** — Fix: the Home hero and form card kept showing last season's final
+  table after the season rolled over. The cached payload recorded no season, so it was
+  served as current until its TTL expired, while the season-scoped Table card correctly
+  showed the new one. The cache key is now season-scoped. (`a83cf12`)
+- **2026-08-27** — Fix: news is sorted newest-first server-side (Google News RSS orders
+  by relevance, not time), with a Newest/Oldest toggle on the News page. (`e61d91e`)
+- **2026-08-27** — Fix: the current season is computed from the date instead of being
+  pinned to a hardcoded value, and coaching staff (returned by the roster endpoint with
+  no real position) no longer appear in the squad as midfielders. (`bd976fe`)
 - **2026-08-03** — Fix: a blank white page after deploy for anyone with a cached
   session from before the news feature shipped (AppData gained a field without a
   cache-key bump, and an old cached shape crashed the render with nothing to catch
