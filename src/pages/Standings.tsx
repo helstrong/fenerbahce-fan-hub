@@ -4,7 +4,7 @@ import Pill from '../components/Pill'
 import { TieRow } from '../components/ResultStrip'
 import SeasonSelect from '../components/SeasonSelect'
 import TeamBadge from '../components/TeamBadge'
-import { FENER_ID, IS_FREE_KEY } from '../data/api'
+import { FENER_ID, IS_FREE_KEY, LEAGUE_ID } from '../data/api'
 import type { CompetitionStandings, KnockoutStage } from '../data/api'
 import { useSeason, useSelectedCompetition } from '../data/SeasonContext'
 
@@ -81,7 +81,10 @@ function CompetitionView({ competition }: { competition: CompetitionStandings })
 
 function LeagueTable({ competition }: { competition: CompetitionStandings }) {
   const standings = competition.standings
-  const showForm = competition.source === 'official'
+  // Computed tables carry a form guide too now, so this keys off whether the
+  // data actually has form rather than off which source produced it.
+  const showForm = standings.some((s) => s.form)
+  const isLeague = competition.competitionId === LEAGUE_ID
 
   // The design's mobile table is #/Club/P/GD/Pts/Form. The per-result breakdown
   // is real data the app already had, so rather than drop it, it's hidden at
@@ -121,11 +124,7 @@ function LeagueTable({ competition }: { competition: CompetitionStandings }) {
                   <td className="px-3 py-2.5">
                     <span
                       className={`font-display text-[15px] font-bold ${
-                        isFener
-                          ? ''
-                          : competition.source === 'official' && s.rank <= 4
-                            ? 'text-fener-yellow'
-                            : 'text-white/45'
+                        isFener ? '' : isLeague && s.rank <= 4 ? 'text-fener-yellow' : 'text-white/45'
                       }`}
                     >
                       {s.rank}
@@ -162,16 +161,9 @@ function LeagueTable({ competition }: { competition: CompetitionStandings }) {
       </div>
 
       <p className="mt-3 text-[11px] leading-relaxed text-white/35">
-        {competition.source === 'official' ? (
-          <>
-            Top 4 qualify for continental football.
-            {IS_FREE_KEY && standings.length <= 6
-              ? ' The free data tier returns only the top of the table.'
-              : ''}
-          </>
-        ) : (
-          competition.note
-        )}
+        {isLeague && 'Top 4 qualify for continental football. '}
+        {IS_FREE_KEY && standings.length <= 6 && 'The free data tier returns only the top of the table. '}
+        {competition.note}
       </p>
     </div>
   )

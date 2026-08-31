@@ -40,7 +40,7 @@ const clean = (v: unknown): string | undefined => {
 }
 
 // ---- Standings (top 5 on the free tier) ---------------------------------
-export async function fetchStandings(season: string = SEASON): Promise<Standing[]> {
+async function fetchOfficialTable(season: string): Promise<Standing[]> {
   const { table } = await request('lookuptable.php', { l: LEAGUE_ID, s: season })
   const rows: any[] = table ?? []
   return rows.map((r) => ({
@@ -57,7 +57,63 @@ export async function fetchStandings(season: string = SEASON): Promise<Standing[
   }))
 }
 
+export interface LeagueTable {
+  standings: Standing[]
+  source: 'official' | 'computed'
+  note?: string
+}
+
+const LEAGUE_COMPUTED_NOTE =
+  'Computed from results — the published table hadn’t caught up with the latest matches yet. Tiebreakers are simplified (points, then goal difference, then goals scored) and may differ from the official table.'
+
+// TheSportsDB recomputes lookuptable.php on its own schedule and can sit days
+// behind the results it is already serving: after a matchday the table still
+// shows the pre-match standings. Rather than show a table the app's own results
+// contradict, compare the two and recompute from the fixtures when the
+// published one is behind.
+export async function fetchLeagueTable(
+  season: string = SEASON,
+  leagueEvents?: Fixture[],
+): Promise<LeagueTable> {
+  const [official, events] = await Promise.all([
+    fetchOfficialTable(season).catch(() => [] as Standing[]),
+    leagueEvents ? Promise.resolve(leagueEvents) : fetchSeasonEvents(LEAGUE_ID, season),
+  ])
+
+  const computed = computeStandingsFromFixtures(events)
+  if (!computed.length) return { standings: official, source: 'official' }
+  if (!official.length) return { standings: computed, source: 'computed', note: LEAGUE_COMPUTED_NOTE }
+
+  // Compared per team rather than in aggregate, so a table truncated by the
+  // free tier (top 5 only) isn't mistaken for a stale one.
+  const playedByTeam = new Map(computed.map((r) => [r.team.id, r.played]))
+  const behind = official.some((o) => (playedByTeam.get(o.team.id) ?? 0) > o.played)
+
+  return behind
+    ? { standings: computed, source: 'computed', note: LEAGUE_COMPUTED_NOTE }
+    : { standings: official, source: 'official' }
+}
+
+export async function fetchStandings(season: string = SEASON): Promise<Standing[]> {
+  return (await fetchLeagueTable(season)).standings
+}
+
 // ---- Fixtures (rolling ~5 last + ~5 next on the free tier) ---------------
+
+// TheSportsDB gives kick-off times in UTC but writes them without a timezone
+// designator ("2026-08-30T18:30:00"). JavaScript reads a bare date-time as
+// LOCAL time, so that 18:30 UTC kick-off rendered as 18:30 for a viewer in
+// UTC+2 instead of 20:30 — and the countdown was wrong by the same offset.
+// Marking it as UTC lets toLocaleString put it in whatever zone the viewer is
+// actually in. (strTimeLocal exists but is local to the venue, not the viewer.)
+function toUtcIso(x: any): string {
+  const raw: string = x.strTimestamp || (x.dateEvent ? `${x.dateEvent}T${x.strTime || '00:00:00'}` : '')
+  if (!raw) return ''
+  const s = raw.trim().replace(' ', 'T')
+  // Leave it alone if the feed ever does include a zone, so this can't double up.
+  return /(?:Z|[+-]\d{2}:?\d{2})$/.test(s) ? s : `${s}Z`
+}
+
 function toFixture(x: any): Fixture {
   const homeScore = score(x.intHomeScore)
   const awayScore = score(x.intAwayScore)
@@ -66,7 +122,7 @@ function toFixture(x: any): Fixture {
     /finished|ft|aet|pen/i.test(String(x.strStatus ?? '')) ||
     (homeScore !== null && awayScore !== null)
   const status: FixtureStatus = finished ? 'finished' : 'upcoming'
-  const date = x.strTimestamp || `${x.dateEvent ?? ''}T${x.strTime ?? '00:00:00'}`
+  const date = toUtcIso(x)
   return {
     id: String(x.idEvent),
     competition: x.strLeague ?? 'Süper Lig',
@@ -116,14 +172,14 @@ const COMPETITIONS: { id: number; name: string }[] = [
 // Fetch every match of every candidate competition for a season, once. Shared
 // by fetchSeasonFixtures (filters to our team) and fetchCompetitionTables
 // (uses the full list to compute a table) so neither refetches the other's data.
+async function fetchSeasonEvents(competitionId: number, season: string): Promise<Fixture[]> {
+  return request('eventsseason.php', { id: competitionId, s: season })
+    .then((r) => ((r.events ?? []) as any[]).map(toFixture))
+    .catch(() => [] as Fixture[])
+}
+
 export async function fetchCompetitionEvents(season: string): Promise<Map<number, Fixture[]>> {
-  const lists = await Promise.all(
-    COMPETITIONS.map(({ id }) =>
-      request('eventsseason.php', { id, s: season })
-        .then((r) => ((r.events ?? []) as any[]).map(toFixture))
-        .catch(() => [] as Fixture[]),
-    ),
-  )
+  const lists = await Promise.all(COMPETITIONS.map(({ id }) => fetchSeasonEvents(id, season)))
   return new Map(COMPETITIONS.map(({ id }, i) => [id, lists[i]]))
 }
 
@@ -190,12 +246,15 @@ function computeStandingsFromFixtures(fixtures: Fixture[]): Standing[] {
     gf: number
     ga: number
     points: number
+    // Kept with kick-off times so the form string can be ordered oldest →
+    // newest, matching how TheSportsDB writes its own strForm.
+    history: { at: number; result: 'W' | 'D' | 'L' }[]
   }
   const rows = new Map<string, Row>()
   const row = (team: Team): Row => {
     let r = rows.get(team.id)
     if (!r) {
-      r = { team, played: 0, won: 0, drawn: 0, lost: 0, gf: 0, ga: 0, points: 0 }
+      r = { team, played: 0, won: 0, drawn: 0, lost: 0, gf: 0, ga: 0, points: 0, history: [] }
       rows.set(team.id, r)
     }
     return r
@@ -211,25 +270,39 @@ function computeStandingsFromFixtures(fixtures: Fixture[]): Standing[] {
     home.ga += f.awayScore
     away.gf += f.awayScore
     away.ga += f.homeScore
+    const at = +new Date(f.date)
     if (f.homeScore > f.awayScore) {
       home.won++
       away.lost++
       home.points += 3
+      home.history.push({ at, result: 'W' })
+      away.history.push({ at, result: 'L' })
     } else if (f.homeScore < f.awayScore) {
       away.won++
       home.lost++
       away.points += 3
+      home.history.push({ at, result: 'L' })
+      away.history.push({ at, result: 'W' })
     } else {
       home.drawn++
       away.drawn++
       home.points++
       away.points++
+      home.history.push({ at, result: 'D' })
+      away.history.push({ at, result: 'D' })
     }
   }
 
+  const formOf = (history: Row['history']) =>
+    [...history]
+      .sort((a, b) => a.at - b.at)
+      .slice(-5)
+      .map((h) => h.result)
+      .join('') || undefined
+
   return [...rows.values()]
     .sort((a, b) => b.points - a.points || b.gf - b.ga - (a.gf - a.ga) || b.gf - a.gf)
-    .map((r, i) => ({ rank: i + 1, ...r }))
+    .map(({ history, ...r }, i) => ({ rank: i + 1, ...r, form: formOf(history) }))
 }
 
 export interface KnockoutStage {
@@ -342,12 +415,15 @@ export async function fetchCompetitionTables(
     if (!own.length) continue // Fenerbahçe didn't play this one this season
 
     if (id === LEAGUE_ID) {
+      // Reuses the season's events we already have rather than refetching them.
+      const table = await fetchLeagueTable(season, list)
       out.push({
         competitionId: id,
         competitionName: name,
-        source: 'official',
-        standings: await fetchStandings(season),
+        source: table.source,
+        standings: table.standings,
         knockout: [],
+        note: table.note,
       })
       continue
     }

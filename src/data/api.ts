@@ -28,7 +28,7 @@ export { roundLabel }
 // The single entry point every screen reads from. Swap the data source by
 // toggling VITE_USE_SAMPLE in .env — the return shape (AppData) never changes.
 
-export { FENER_ID, IS_FREE_KEY }
+export { FENER_ID, IS_FREE_KEY, LEAGUE_ID }
 
 // Season-scoped on purpose: the cached payload holds standings for whichever
 // season was current when it was written, but nothing in it records that. When
@@ -38,7 +38,10 @@ export { FENER_ID, IS_FREE_KEY }
 // previous campaign's final table while the season-scoped Table card, which
 // doesn't read this cache, correctly showed the new one. Keying by season makes
 // the rollover self-healing instead of a stale-until-TTL bug.
-const CACHE_KEY = `fener-fan-hub:data:v5:${SEASON}`
+// v6: cached fixtures written before the UTC fix carry kick-off times that
+// would still render in the wrong zone, so the old entries have to be retired
+// rather than waited out.
+const CACHE_KEY = `fener-fan-hub:data:v6:${SEASON}`
 
 function sampleData(): AppData {
   const byDateAsc = (a: Fixture, b: Fixture) => +new Date(a.date) - +new Date(b.date)
