@@ -2,26 +2,28 @@ import { SectionTitle } from '../components/Card'
 import Crest from '../components/Crest'
 import Stripes from '../components/Stripes'
 import type { AppData, ClubProfile, Kit } from '../data/types'
+import { useI18n } from '../i18n/I18nContext'
+import { fmtNumber } from '../lib/format'
 
 const href = (url?: string) => (url ? (/^https?:\/\//.test(url) ? url : `https://${url}`) : undefined)
 
 export default function Club({ data }: { data: AppData }) {
+  const { t, locale } = useI18n()
   const club = data.club
 
   if (!club) {
     return (
       <div>
-        <h1 className="font-display text-3xl font-bold uppercase leading-none">Club</h1>
-        <p className="mt-4 text-sm text-white/40">Club information is unavailable right now.</p>
+        <h1 className="font-display text-3xl font-bold uppercase leading-none">{t('club.title')}</h1>
+        <p className="mt-4 text-sm text-white/40">{t('club.unavailable')}</p>
       </div>
     )
   }
 
-  // Pinned to en-GB like the date formatting in lib/format — the default locale
-  // renders 53715 as "53.715" on a European machine, which reads as a decimal.
+  // Formatted against the active language so 53715 doesn't render as a decimal.
   const capacity =
     club.capacity && Number.isFinite(Number(club.capacity))
-      ? Number(club.capacity).toLocaleString('en-GB')
+      ? fmtNumber(Number(club.capacity), locale)
       : club.capacity
 
   const where = [club.location, club.country].filter(Boolean).join(', ')
@@ -35,20 +37,23 @@ export default function Club({ data }: { data: AppData }) {
       )}
 
       <section>
-        <SectionTitle>Club facts</SectionTitle>
+        <SectionTitle>{t('club.facts')}</SectionTitle>
         <div className="grid grid-cols-2 gap-2">
-          {club.formedYear && <BigFact value={club.formedYear} label="Founded" />}
-          {capacity && <BigFact value={capacity} label="Capacity" />}
+          {club.formedYear && <BigFact value={club.formedYear} label={t('club.founded')} />}
+          {capacity && <BigFact value={capacity} label={t('club.capacity')} />}
           {club.stadium && (
-            <WideFact value={club.stadium} label={where ? `Stadium · ${where}` : 'Stadium'} />
+            <WideFact
+              value={club.stadium}
+              label={where ? `${t('club.stadium')} · ${where}` : t('club.stadium')}
+            />
           )}
-          {club.nicknames && <WideFact value={club.nicknames} label="Nicknames" />}
+          {club.nicknames && <WideFact value={club.nicknames} label={t('club.nicknames')} />}
         </div>
       </section>
 
       {club.competitions && club.competitions.length > 0 && (
         <section>
-          <SectionTitle>Competes in</SectionTitle>
+          <SectionTitle>{t('club.competesIn')}</SectionTitle>
           <div className="flex flex-col gap-px overflow-hidden rounded-xl bg-white/[0.09]">
             {club.competitions.map((c) => (
               <div key={c} className="flex items-center gap-2.5 bg-fener-navy px-3.5 py-3 text-[13px]">
@@ -68,6 +73,7 @@ export default function Club({ data }: { data: AppData }) {
 }
 
 function Hero({ club }: { club: ClubProfile }) {
+  const { t } = useI18n()
   return (
     <section className="relative -mx-4 -mt-6 overflow-hidden border-b-2 border-fener-yellow bg-gradient-to-br from-fener-navy-glow via-fener-navy to-fener-navy-dark px-5 py-7 md:mx-0 md:mt-0 md:rounded-2xl md:border-b-0 md:border-l-2">
       {/* The club banner, when there is one, sits behind the gradient as texture
@@ -79,7 +85,11 @@ function Hero({ club }: { club: ClubProfile }) {
 
       <div className="relative flex items-center gap-4">
         {club.badge ? (
-          <img src={club.badge} alt={`${club.name} crest`} className="h-16 w-16 shrink-0 object-contain sm:h-[72px] sm:w-[72px]" />
+          <img
+            src={club.badge}
+            alt={`${club.name} crest`}
+            className="h-16 w-16 shrink-0 object-contain sm:h-[72px] sm:w-[72px]"
+          />
         ) : (
           <Crest className="h-16 w-16 shrink-0 sm:h-[72px] sm:w-[72px]" />
         )}
@@ -90,7 +100,9 @@ function Hero({ club }: { club: ClubProfile }) {
           {club.altName && <p className="mt-1.5 text-xs font-medium text-fener-yellow">{club.altName}</p>}
           {(club.formedYear || club.location) && (
             <p className="mt-1 text-[11px] text-white/50">
-              {[club.formedYear && `Est. ${club.formedYear}`, club.location].filter(Boolean).join(' · ')}
+              {[club.formedYear && `${t('club.founded')} ${club.formedYear}`, club.location]
+                .filter(Boolean)
+                .join(' · ')}
             </p>
           )}
         </div>
@@ -122,6 +134,7 @@ function WideFact({ value, label }: { value: string; label: string }) {
 }
 
 function Socials({ club }: { club: ClubProfile }) {
+  const { t } = useI18n()
   const links: [string, string | undefined][] = [
     ['Website', club.website],
     ['Instagram', club.instagram],
@@ -134,7 +147,7 @@ function Socials({ club }: { club: ClubProfile }) {
 
   return (
     <section>
-      <SectionTitle>Official links</SectionTitle>
+      <SectionTitle>{t('club.officialLinks')}</SectionTitle>
       <div className="flex flex-wrap gap-1.5">
         {present.map(([label, url]) => (
           <a
@@ -153,10 +166,11 @@ function Socials({ club }: { club: ClubProfile }) {
 }
 
 function Fanart({ images }: { images?: string[] }) {
+  const { t } = useI18n()
   if (!images || !images.length) return null
   return (
     <section>
-      <SectionTitle>Fan art</SectionTitle>
+      <SectionTitle>{t('club.fanArt')}</SectionTitle>
       <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
         {images.map((src) => (
           <img
@@ -173,10 +187,11 @@ function Fanart({ images }: { images?: string[] }) {
 }
 
 function Kits({ kits }: { kits: Kit[] }) {
+  const { t } = useI18n()
   if (!kits.length) return null
   return (
     <section>
-      <SectionTitle>Kits</SectionTitle>
+      <SectionTitle>{t('club.kits')}</SectionTitle>
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4">
         {kits.map((k) => (
           <div

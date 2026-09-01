@@ -6,6 +6,7 @@ import Fixtures from './pages/Fixtures'
 import Club from './pages/Club'
 import Home from './pages/Home'
 import News from './pages/News'
+import Opponent from './pages/Opponent'
 import Squad from './pages/Squad'
 import Standings from './pages/Standings'
 
@@ -24,6 +25,7 @@ export default function App() {
             <Route path="/" element={<Home data={data} />} />
             <Route path="/fixtures" element={<Fixtures />} />
             <Route path="/standings" element={<Standings />} />
+            <Route path="/opponent/:teamId" element={<Opponent />} />
             <Route path="/squad" element={<Squad data={data} />} />
             <Route path="/club" element={<Club data={data} />} />
             <Route path="/news" element={<News data={data} />} />

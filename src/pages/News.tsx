@@ -2,12 +2,14 @@ import { useMemo, useState } from 'react'
 import PageHeader from '../components/PageHeader'
 import Pill from '../components/Pill'
 import type { AppData } from '../data/types'
+import { useI18n } from '../i18n/I18nContext'
 import { fmtDate } from '../lib/format'
 
 const sortOptions = ['Newest', 'Oldest'] as const
 type SortOption = (typeof sortOptions)[number]
 
 export default function News({ data }: { data: AppData }) {
+  const { t, locale } = useI18n()
   const [sort, setSort] = useState<SortOption>('Newest')
 
   // data.news already arrives newest-first; reversing is enough for 'Oldest'
@@ -19,12 +21,12 @@ export default function News({ data }: { data: AppData }) {
 
   return (
     <div>
-      <PageHeader title="News">
+      <PageHeader title={t('news.title')}>
         {data.news.length > 1 && (
           <div className="flex gap-1.5">
             {sortOptions.map((opt) => (
               <Pill key={opt} active={sort === opt} onClick={() => setSort(opt)}>
-                {opt}
+                {opt === 'Newest' ? t('news.newest') : t('news.oldest')}
               </Pill>
             ))}
           </div>
@@ -43,20 +45,19 @@ export default function News({ data }: { data: AppData }) {
             >
               <div className="text-[10px] font-semibold uppercase tracking-[0.1em] text-fener-yellow">
                 {n.source}
-                {n.publishedAt ? ` · ${fmtDate(n.publishedAt)}` : ''}
+                {n.publishedAt ? ` · ${fmtDate(n.publishedAt, locale)}` : ''}
               </div>
               <h2 className="mt-2 text-[15px] font-semibold leading-snug text-pretty">{n.title}</h2>
             </a>
           ))}
         </div>
       ) : (
-        <p className="text-sm text-white/40">No news available right now.</p>
+        <p className="text-sm text-white/40">{t('news.none')}</p>
       )}
 
-      <p className="mt-4 text-[11px] leading-relaxed text-white/35">
-        Curated from a small set of trusted outlets via Google News. Not official Fenerbahçe SK
-        content and not affiliated with the club.
-      </p>
+      {/* The affiliation disclaimer lives in the global footer now, so this only
+          has to explain where the articles come from. */}
+      <p className="mt-4 text-[11px] leading-relaxed text-white/35">{t('news.note')}</p>
     </div>
   )
 }

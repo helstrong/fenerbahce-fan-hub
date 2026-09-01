@@ -1,5 +1,6 @@
 import { Component } from 'react'
 import type { ReactNode } from 'react'
+import { useI18n } from '../i18n/I18nContext'
 
 interface Props {
   children: ReactNode
@@ -25,26 +26,29 @@ export default class ErrorBoundary extends Component<Props, State> {
   }
 
   render() {
-    if (this.state.error) {
-      return (
-        <div className="flex min-h-screen flex-col items-center justify-center gap-4 p-6 text-center">
-          <p className="text-lg font-bold text-white">Something went wrong.</p>
-          <p className="max-w-sm text-sm text-white/60">
-            Please try reloading the page. If the problem persists, clearing this site's data may
-            help.
-          </p>
-          <button
-            onClick={() => {
-              localStorage.clear()
-              window.location.reload()
-            }}
-            className="rounded-lg bg-fener-yellow px-4 py-2 text-sm font-semibold text-fener-navy transition hover:opacity-90"
-          >
-            Reload
-          </button>
-        </div>
-      )
-    }
+    if (this.state.error) return <CrashView />
     return this.props.children
   }
+}
+
+// Split out as a function component so the fallback can still be translated —
+// a class can't use hooks. Safe because I18nProvider sits above this boundary,
+// so its context is available even when everything below has failed.
+function CrashView() {
+  const { t } = useI18n()
+  return (
+    <div className="flex min-h-screen flex-col items-center justify-center gap-4 p-6 text-center">
+      <p className="text-lg font-bold text-white">{t('status.crashed')}</p>
+      <p className="max-w-sm text-sm text-white/60">{t('status.crashedHelp')}</p>
+      <button
+        onClick={() => {
+          localStorage.clear()
+          window.location.reload()
+        }}
+        className="rounded-lg bg-fener-yellow px-4 py-2 text-sm font-semibold text-fener-navy transition hover:opacity-90"
+      >
+        {t('status.reload')}
+      </button>
+    </div>
+  )
 }

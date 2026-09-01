@@ -3,8 +3,10 @@ import MatchCard from '../components/MatchCard'
 import PageHeader from '../components/PageHeader'
 import SeasonSelect from '../components/SeasonSelect'
 import { useSeason } from '../data/SeasonContext'
+import { useI18n } from '../i18n/I18nContext'
 
 export default function Fixtures() {
+  const { t } = useI18n()
   const { status, data } = useSeason()
   const [tab, setTab] = useState<'upcoming' | 'results'>('upcoming')
 
@@ -20,27 +22,28 @@ export default function Fixtures() {
 
   return (
     <div>
-      <PageHeader title="Fixtures">
+      <PageHeader title={t('fixtures.title')}>
         <SeasonSelect />
       </PageHeader>
 
       <div className="mb-4 flex gap-1.5 rounded-xl bg-white/[0.07] p-1">
-        {(['upcoming', 'results'] as const).map((t) => (
+        {(['upcoming', 'results'] as const).map((key) => (
           <button
-            key={t}
-            onClick={() => setTab(t)}
-            aria-pressed={tab === t}
+            key={key}
+            onClick={() => setTab(key)}
+            aria-pressed={tab === key}
             className={`flex-1 rounded-[9px] py-2 text-xs font-semibold uppercase tracking-[0.06em] transition ${
-              tab === t ? 'bg-fener-yellow text-fener-navy' : 'text-white/55 hover:text-white'
+              tab === key ? 'bg-fener-yellow text-fener-navy' : 'text-white/55 hover:text-white'
             }`}
           >
-            {t} <span className="opacity-60">{t === 'results' ? results.length : upcoming.length}</span>
+            {key === 'results' ? t('fixtures.results') : t('fixtures.upcoming')}{' '}
+            <span className="opacity-60">{key === 'results' ? results.length : upcoming.length}</span>
           </button>
         ))}
       </div>
 
       {status === 'error' ? (
-        <p className="text-sm text-result-loss">Couldn’t load fixtures for this season.</p>
+        <p className="text-sm text-result-loss">{t('fixtures.error')}</p>
       ) : list.length ? (
         <div className="grid gap-2.5 md:grid-cols-2">
           {list.map((f) => (
@@ -49,14 +52,15 @@ export default function Fixtures() {
         </div>
       ) : (
         <p className="text-sm text-white/40">
-          {status === 'loading' ? 'Loading fixtures…' : `No ${tab} matches this season.`}
+          {status === 'loading'
+            ? t('fixtures.loading')
+            : tab === 'results'
+              ? t('fixtures.noneResults')
+              : t('fixtures.noneUpcoming')}
         </p>
       )}
 
-      <p className="mt-4 text-[11px] leading-relaxed text-white/35">
-        Includes Süper Lig, Turkish Cup, European ties and friendlies. Friendlies for past seasons
-        may be incomplete.
-      </p>
+      <p className="mt-4 text-[11px] leading-relaxed text-white/35">{t('fixtures.note')}</p>
     </div>
   )
 }

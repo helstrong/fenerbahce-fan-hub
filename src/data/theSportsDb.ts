@@ -1,5 +1,17 @@
 import { LEAGUE_ID, SEASON, SPORTSDB_BASE, TEAM_ID } from './config'
-import type { ClubProfile, Fixture, FixtureStatus, Kit, Player, Position, Standing, Team } from './types'
+import type {
+  ClubProfile,
+  Fixture,
+  FixtureStatus,
+  Kit,
+  Player,
+  PlayerCareer,
+  PlayerHonour,
+  PlayerSpell,
+  Position,
+  Standing,
+  Team,
+} from './types'
 
 // Thin client for TheSportsDB (https://www.thesportsdb.com/), JSON API v1.
 // Each exported function maps a raw response into our own domain types so the
@@ -317,6 +329,12 @@ export interface CompetitionStandings {
   standings: Standing[]
   knockout: KnockoutStage[]
   note?: string
+  /**
+   * Every match in this competition this season, not just Fenerbahçe's — the
+   * same array already fetched to build the table, shared by reference so
+   * expanding a table row can show that club's season without another request.
+   */
+  events: Fixture[]
 }
 
 // First season UEFA's club competitions used a single Swiss-format table
@@ -423,6 +441,7 @@ export async function fetchCompetitionTables(
         source: table.source,
         standings: table.standings,
         knockout: [],
+        events: list,
         note: table.note,
       })
       continue
@@ -435,6 +454,7 @@ export async function fetchCompetitionTables(
         source: 'unavailable',
         standings: [],
         knockout: buildKnockoutStages(own),
+        events: list,
         note: 'Knockout competition — there is no league table.',
       })
       continue
@@ -449,6 +469,7 @@ export async function fetchCompetitionTables(
         source: 'computed',
         standings: computeStandingsFromFixtures(list.filter(isLeaguePhase)),
         knockout,
+        events: list,
         note: 'Computed from match results — not supplied by the data source. Tiebreakers are simplified (points, then goal difference, then goals scored) and may differ slightly from the official UEFA table.',
       })
     } else {
@@ -458,12 +479,52 @@ export async function fetchCompetitionTables(
         source: 'unavailable',
         standings: [],
         knockout,
+        events: list,
         note: 'Group-stage era — a single table isn’t available from this data source.',
       })
     }
   }
 
   return out
+}
+
+// ---- Head-to-head --------------------------------------------------------
+// The fixture archive for these competitions only reaches back to about
+// 2018-19 — earlier seasons return nothing at all — so there's no point
+// spending requests on them.
+const ARCHIVE_START_YEAR = 2018
+
+export function archivedSeasons(from: string = SEASON): string[] {
+  const start = parseInt(from, 10)
+  if (!Number.isFinite(start)) return [from]
+  const out: string[] = []
+  for (let year = start; year >= ARCHIVE_START_YEAR; year--) out.push(`${year}-${year + 1}`)
+  return out
+}
+
+// Every completed meeting between Fenerbahçe and one opponent in a given
+// competition, newest first. One request per archived season; each is cached by
+// the proxy, and a season that fails resolves to nothing rather than sinking
+// the whole record.
+export async function fetchHeadToHead(
+  competitionId: number,
+  opponentId: string,
+): Promise<{ fixtures: Fixture[]; seasons: string[] }> {
+  const team = String(TEAM_ID)
+  const seasons = archivedSeasons()
+  const lists = await Promise.all(seasons.map((s) => fetchSeasonEvents(competitionId, s)))
+
+  const fixtures = lists
+    .flat()
+    .filter(
+      (f) =>
+        (f.home.id === team && f.away.id === opponentId) ||
+        (f.away.id === team && f.home.id === opponentId),
+    )
+    .filter((f) => f.status === 'finished')
+    .sort((a, b) => +new Date(b.date) - +new Date(a.date))
+
+  return { fixtures, seasons }
 }
 
 // ---- Squad (bio only, ~10 players on the free tier) ---------------------
@@ -513,7 +574,56 @@ export async function fetchPlayers(): Promise<Player[]> {
     weight: clean(p.strWeight),
     birthplace: clean(p.strBirthLocation),
     signing: clean(p.strSigning),
+    // Already present on the roster response, so the bio costs no extra request.
+    description: clean(p.strDescriptionEN),
   }))
+}
+
+// Career history for one player, fetched only when a squad row is expanded.
+// Honours are grouped by trophy so a serial winner reads as "Premier League ×3"
+// rather than three near-identical rows. lookupcontracts is deliberately not
+// used: it returns a single row that duplicates the former-teams data with an
+// empty wage field, so it isn't worth a third request.
+export async function fetchPlayerCareer(playerId: string): Promise<PlayerCareer> {
+  const [honoursRes, formerRes] = await Promise.allSettled([
+    request('lookuphonours.php', { id: playerId }),
+    request('lookupformerteams.php', { id: playerId }),
+  ])
+
+  const honourRows: any[] =
+    (honoursRes.status === 'fulfilled' ? honoursRes.value?.honours : null) ?? []
+  const formerRows: any[] =
+    (formerRes.status === 'fulfilled' ? formerRes.value?.formerteams : null) ?? []
+
+  const grouped = new Map<string, PlayerHonour>()
+  for (const h of honourRows) {
+    const honour = clean(h.strHonour)
+    if (!honour) continue
+    const key = `${honour}|${clean(h.strTeam) ?? ''}`
+    const entry = grouped.get(key) ?? { honour, team: clean(h.strTeam), seasons: [] }
+    const season = clean(h.strSeason)
+    if (season && !entry.seasons.includes(season)) entry.seasons.push(season)
+    grouped.set(key, entry)
+  }
+
+  const honours = [...grouped.values()]
+    .map((h) => ({ ...h, seasons: h.seasons.sort() }))
+    .sort((a, b) => b.seasons.length - a.seasons.length || a.honour.localeCompare(b.honour))
+
+  const spells: PlayerSpell[] = formerRows
+    .map((f) => ({
+      team: (clean(f.strFormerTeam) ?? '').trim(),
+      badge: clean(f.strBadge),
+      joined: clean(f.strJoined),
+      departed: clean(f.strDeparted),
+      appearances: f.intAppearances != null ? num(f.intAppearances) : undefined,
+      goals: f.intGoals != null ? num(f.intGoals) : undefined,
+    }))
+    .filter((s) => s.team)
+    // Most recent spell first.
+    .sort((a, b) => Number(b.joined ?? 0) - Number(a.joined ?? 0))
+
+  return { spells, honours }
 }
 
 // ---- Club profile -------------------------------------------------------

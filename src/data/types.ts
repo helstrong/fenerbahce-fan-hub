@@ -51,6 +51,31 @@ export interface Player {
   weight?: string // e.g. "148 lbs"
   birthplace?: string
   signing?: string // e.g. "on Loan (Al-Ahli)"
+  description?: string
+}
+
+// Career history, loaded on demand when a squad row is expanded. This provider
+// publishes no per-match statistics for this league, so "stats" here means
+// career aggregates per club (appearances and goals) plus honours won — who a
+// player has been, rather than how they've performed this season.
+export interface PlayerSpell {
+  team: string
+  badge?: string
+  joined?: string
+  departed?: string
+  appearances?: number
+  goals?: number
+}
+
+export interface PlayerHonour {
+  honour: string
+  team?: string
+  seasons: string[]
+}
+
+export interface PlayerCareer {
+  spells: PlayerSpell[]
+  honours: PlayerHonour[]
 }
 
 // Club identity / profile from lookupteam.

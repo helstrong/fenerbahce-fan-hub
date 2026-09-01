@@ -4,7 +4,9 @@ import {
   fetchCompetitionEvents,
   fetchCompetitionTables,
   fetchFixtures,
+  fetchHeadToHead,
   fetchKits,
+  fetchPlayerCareer,
   fetchPlayers,
   fetchSeasonFixtures,
   fetchStandings,
@@ -20,10 +22,10 @@ import {
   players as samplePlayers,
   standings as sampleStandings,
 } from './seed'
-import type { AppData, Fixture } from './types'
+import type { AppData, Fixture, PlayerCareer } from './types'
 
 export type { CompetitionStandings, KnockoutStage }
-export { roundLabel }
+export { roundLabel, fetchHeadToHead }
 
 // The single entry point every screen reads from. Swap the data source by
 // toggling VITE_USE_SAMPLE in .env — the return shape (AppData) never changes.
@@ -172,6 +174,9 @@ export async function loadSeason(season: string): Promise<SeasonData> {
           source: 'official',
           standings: s.standings,
           knockout: [],
+          // Sample mode only carries Fenerbahçe's own fixtures, which is enough
+          // for the expandable rows to show something real rather than nothing.
+          events: [...s.results, ...s.upcoming],
         },
       ],
       results: s.results,
@@ -201,6 +206,26 @@ export async function loadSeason(season: string): Promise<SeasonData> {
     upcoming: fixtures.status === 'fulfilled' ? fixtures.value.upcoming : [],
     warnings,
   }
+}
+
+// ---- player career (on demand) ------------------------------------------
+// Loaded only when a squad row is expanded, and memoised for the session so
+// collapsing and reopening the same player doesn't refetch.
+const careerCache = new Map<string, Promise<PlayerCareer>>()
+
+export function loadPlayerCareer(playerId: string): Promise<PlayerCareer> {
+  if (!USE_LIVE) return Promise.resolve({ spells: [], honours: [] })
+
+  const hit = careerCache.get(playerId)
+  if (hit) return hit
+
+  const pending = fetchPlayerCareer(playerId).catch((e) => {
+    // Don't cache a failure — a later expand should be able to retry.
+    careerCache.delete(playerId)
+    throw e
+  })
+  careerCache.set(playerId, pending)
+  return pending
 }
 
 // ---- pure selectors -----------------------------------------------------

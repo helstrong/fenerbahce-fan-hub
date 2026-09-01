@@ -30,6 +30,9 @@ const ALLOWED = new Set([
   'lookup_all_players.php',
   'lookupteam.php',
   'lookupequipment.php',
+  // Player career history, loaded on demand when a squad row is expanded.
+  'lookuphonours.php',
+  'lookupformerteams.php',
 ])
 
 // Small in-memory cache: cuts upstream calls and blunts quota abuse.

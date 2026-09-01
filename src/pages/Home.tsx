@@ -10,10 +10,13 @@ import { FENER_ID, IS_FREE_KEY, lastResult, nextMatch, roundLabel, standingFor }
 import type { KnockoutStage } from '../data/api'
 import { useSeason, useSelectedCompetition } from '../data/SeasonContext'
 import type { AppData, Fixture, Standing } from '../data/types'
+import { useI18n } from '../i18n/I18nContext'
+import type { Translate } from '../i18n/I18nContext'
 import { fmtDate, fmtMatchTime, ordinal } from '../lib/format'
 import { useCountdown } from '../lib/useCountdown'
 
 export default function Home({ data }: { data: AppData }) {
+  const { t, locale } = useI18n()
   const last = lastResult(data)
   const next = nextMatch(data)
   const fener = standingFor(data, FENER_ID)
@@ -36,7 +39,7 @@ export default function Home({ data }: { data: AppData }) {
               </span>
             }
           >
-            Last result
+            {t('home.lastResult')}
           </SectionTitle>
           <ResultStrip fixture={last} />
         </section>
@@ -48,11 +51,11 @@ export default function Home({ data }: { data: AppData }) {
         <SectionTitle
           action={
             <Link to="/standings" className={sectionLinkClass}>
-              Full table →
+              {t('home.fullTable')}
             </Link>
           }
         >
-          {activeCompetition?.competitionName ?? 'Table'}
+          {activeCompetition?.competitionName ?? t('home.table')}
         </SectionTitle>
 
         <div className="mb-2.5 flex flex-wrap items-center gap-2">
@@ -65,26 +68,26 @@ export default function Home({ data }: { data: AppData }) {
         </div>
 
         {seasonStatus === 'error' ? (
-          <Empty label="Couldn’t load the table" />
+          <Empty label={t('home.tableError')} />
         ) : !competitions.length ? (
-          <Empty label={seasonStatus === 'loading' ? 'Loading…' : 'No competitions this season'} />
+          <Empty label={seasonStatus === 'loading' ? t('common.loading') : t('home.noCompetitions')} />
         ) : activeCompetition?.standings.length ? (
           <div className="space-y-3">
             <MiniTable standings={activeCompetition.standings.slice(0, 6)} />
             {IS_FREE_KEY && activeCompetition.standings.length <= 6 && (
-              <p className="text-[11px] text-white/35">
-                The free data tier returns only the top of the table.
-              </p>
+              <p className="text-[11px] text-white/35">{t('standings.freeTier')}</p>
             )}
-            {activeCompetition.knockout.length > 0 && <KnockoutMini stages={activeCompetition.knockout} />}
+            {activeCompetition.knockout.length > 0 && (
+              <KnockoutMini stages={activeCompetition.knockout} t={t} />
+            )}
           </div>
         ) : activeCompetition?.knockout.length ? (
           <div className="space-y-3">
             {activeCompetition.note && <p className="text-[11px] text-white/35">{activeCompetition.note}</p>}
-            <KnockoutMini stages={activeCompetition.knockout} />
+            <KnockoutMini stages={activeCompetition.knockout} t={t} />
           </div>
         ) : (
-          <Empty label={activeCompetition?.note ?? 'Table unavailable'} />
+          <Empty label={activeCompetition?.note ?? t('home.tableUnavailable')} />
         )}
       </section>
 
@@ -93,11 +96,11 @@ export default function Home({ data }: { data: AppData }) {
           <SectionTitle
             action={
               <Link to="/news" className={sectionLinkClass}>
-                All news →
+                {t('home.allNews')}
               </Link>
             }
           >
-            Latest news
+            {t('home.latestNews')}
           </SectionTitle>
           {/* 1px gaps over a lighter backdrop give hairline rules between items
               without a border on each one. */}
@@ -113,7 +116,7 @@ export default function Home({ data }: { data: AppData }) {
                 <div className="text-sm font-semibold leading-snug text-pretty">{n.title}</div>
                 <div className="mt-1.5 text-[10px] font-medium uppercase tracking-[0.06em] text-fener-yellow">
                   {n.source}
-                  {n.publishedAt ? ` · ${fmtDate(n.publishedAt)}` : ''}
+                  {n.publishedAt ? ` · ${fmtDate(n.publishedAt, locale)}` : ''}
                 </div>
               </a>
             ))}
@@ -128,6 +131,7 @@ export default function Home({ data }: { data: AppData }) {
 // the screen edges on mobile the way the design does, and tucks back into the
 // content column on desktop.
 function MatchdayHero({ fixture }: { fixture?: Fixture }) {
+  const { t, locale } = useI18n()
   const countdown = useCountdown(fixture?.date)
 
   const shell =
@@ -138,10 +142,10 @@ function MatchdayHero({ fixture }: { fixture?: Fixture }) {
       <section className={shell}>
         <Stripes />
         <div className="relative">
-          <p className="text-xs font-bold uppercase tracking-[0.16em] text-fener-yellow">Next match</p>
-          <p className="mt-3 text-sm text-white/60">
-            No upcoming fixtures right now — the schedule for the next round hasn’t been published yet.
+          <p className="text-xs font-bold uppercase tracking-[0.16em] text-fener-yellow">
+            {t('home.nextMatch')}
           </p>
+          <p className="mt-3 text-sm text-white/60">{t('home.noUpcoming')}</p>
         </div>
       </section>
     )
@@ -153,7 +157,7 @@ function MatchdayHero({ fixture }: { fixture?: Fixture }) {
 
       <div className="relative flex items-baseline justify-between gap-3">
         <span className="text-xs font-bold uppercase tracking-[0.16em] text-fener-yellow">
-          {countdown?.started ? 'Kicking off' : 'Next match'}
+          {countdown?.started ? t('home.kickingOff') : t('home.nextMatch')}
         </span>
         <span className="truncate text-[11px] font-medium uppercase tracking-[0.06em] text-white/55">
           {[fixture.competition, roundLabel(fixture)].filter(Boolean).join(' · ')}
@@ -161,22 +165,22 @@ function MatchdayHero({ fixture }: { fixture?: Fixture }) {
       </div>
 
       <div className="relative mt-5 grid grid-cols-[1fr_auto_1fr] items-center gap-2.5">
-        <HeroSide team={fixture.home} label="Home" />
+        <HeroSide team={fixture.home} label={t('home.sideHome')} />
         <div className="font-display text-[26px] font-bold tracking-[0.04em] text-white/30">VS</div>
-        <HeroSide team={fixture.away} label="Away" />
+        <HeroSide team={fixture.away} label={t('home.sideAway')} />
       </div>
 
       {countdown && (
         <div className="relative mt-5 grid grid-cols-4 gap-1.5">
-          <CountdownCell value={countdown.days} label="Days" />
-          <CountdownCell value={countdown.hours} label="Hrs" />
-          <CountdownCell value={countdown.minutes} label="Min" />
-          <CountdownCell value={countdown.seconds} label="Sec" />
+          <CountdownCell value={countdown.days} label={t('home.days')} />
+          <CountdownCell value={countdown.hours} label={t('home.hrs')} />
+          <CountdownCell value={countdown.minutes} label={t('home.min')} />
+          <CountdownCell value={countdown.seconds} label={t('home.sec')} />
         </div>
       )}
 
       <div className="relative mt-3.5 flex items-center justify-between gap-3 text-[11px] font-medium text-white/60">
-        <span>{fmtMatchTime(fixture.date)}</span>
+        <span>{fmtMatchTime(fixture.date, locale)}</span>
         {fixture.venue && <span className="truncate text-right">{fixture.venue}</span>}
       </div>
     </section>
@@ -207,38 +211,46 @@ function CountdownCell({ value, label }: { value: string; label: string }) {
 // Position, points and goal difference at a glance, with the record and form
 // underneath — the numbers the hero used to carry before matchday took its place.
 function SeasonStanding({ standing }: { standing: Standing }) {
+  const { t, locale } = useI18n()
   const gd = standing.gf - standing.ga
+  const suffix = ordinal(standing.rank, locale)
 
   return (
     <section>
-      <SectionTitle>Season standing</SectionTitle>
+      <SectionTitle>{t('home.seasonStanding')}</SectionTitle>
 
       <div className="grid grid-cols-3 gap-2">
         <div className="rounded-xl bg-fener-yellow px-2.5 py-3 text-fener-navy">
           <div className="font-display text-[38px] font-bold leading-[0.85]">
             {standing.rank}
-            <span className="align-top text-xl leading-none">{ordinal(standing.rank)}</span>
+            {/* A Turkish ordinal is just a full stop, which shouldn't be raised
+                the way an English "nd" is. */}
+            <span className={suffix.length > 1 ? 'align-top text-xl leading-none' : ''}>{suffix}</span>
           </div>
           <div className="mt-1.5 text-[9px] font-semibold uppercase tracking-[0.12em] opacity-65">
-            Position
+            {t('home.position')}
           </div>
         </div>
-        <StatTile value={String(standing.points)} label="Points" />
-        <StatTile value={`${gd >= 0 ? '+' : ''}${gd}`} label="Goal diff" />
+        <StatTile value={String(standing.points)} label={t('home.points')} />
+        <StatTile value={`${gd >= 0 ? '+' : ''}${gd}`} label={t('home.goalDiff')} />
       </div>
 
       <div className="mt-2 flex flex-wrap items-center gap-x-2.5 gap-y-2 rounded-xl bg-white/5 px-3 py-2.5">
         <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-white/45">
-          Last 5
+          {t('home.last5')}
         </span>
         <FormGuide form={standing.form} />
         <span className="ml-auto text-[11px] font-medium text-white/45">
-          {standing.won}W {standing.drawn}D {standing.lost}L
+          {standing.won}
+          {t('table.won')} {standing.drawn}
+          {t('table.drawn')} {standing.lost}
+          {t('table.lost')}
         </span>
       </div>
 
       <p className="mt-2 text-[11px] text-white/35">
-        {standing.played} played · {standing.gf} scored · {standing.ga} conceded
+        {standing.played} {t('common.played')} · {standing.gf} {t('common.scored')} · {standing.ga}{' '}
+        {t('common.conceded')}
       </p>
     </section>
   )
@@ -289,11 +301,11 @@ function MiniTable({ standings }: { standings: Standing[] }) {
 
 // Fenerbahçe's own knockout run, condensed for the dashboard — the full version
 // lives on the Tables page.
-function KnockoutMini({ stages }: { stages: KnockoutStage[] }) {
+function KnockoutMini({ stages, t }: { stages: KnockoutStage[]; t: Translate }) {
   return (
     <div className="space-y-2">
       <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-white/40">
-        Knockout stage
+        {t('home.knockoutStage')}
       </p>
       {stages.map((stage) =>
         stage.fixtures.map((f) => <TieRow key={f.id} fixture={f} label={stage.label} />),

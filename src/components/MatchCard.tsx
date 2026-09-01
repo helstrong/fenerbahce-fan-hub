@@ -1,13 +1,15 @@
 import { FENER_ID, roundLabel } from '../data/api'
 import type { Fixture, Team } from '../data/types'
+import { useI18n } from '../i18n/I18nContext'
 import { fmtMatchTime } from '../lib/format'
-import { perspective, resultFg, resultLabel } from '../lib/result'
+import { perspective, resultFg, resultKey } from '../lib/result'
 import TeamBadge from './TeamBadge'
 
 // The fixtures-list card: competition and kick-off across the top, the two
 // sides stacked so the scoreline can sit beside them at broadcast scale, and
 // round/venue plus the result along the bottom.
 export default function MatchCard({ fixture }: { fixture: Fixture }) {
+  const { t, locale } = useI18n()
   const finished = fixture.status === 'finished'
   const { result } = perspective(fixture)
   const round = roundLabel(fixture)
@@ -17,7 +19,7 @@ export default function MatchCard({ fixture }: { fixture: Fixture }) {
     <div className="rounded-2xl border border-white/10 bg-fener-navy px-4 py-3.5">
       <div className="flex items-center justify-between gap-3 text-[10px] font-medium uppercase tracking-[0.08em]">
         <span className="truncate text-fener-yellow">{fixture.competition}</span>
-        <span className="shrink-0 text-white/45">{fmtMatchTime(fixture.date)}</span>
+        <span className="shrink-0 text-white/45">{fmtMatchTime(fixture.date, locale)}</span>
       </div>
 
       <div className="mt-3 flex items-center gap-3">
@@ -41,7 +43,7 @@ export default function MatchCard({ fixture }: { fixture: Fixture }) {
             <span
               className={`shrink-0 font-display text-xs font-bold uppercase tracking-[0.1em] ${resultFg[result]}`}
             >
-              {resultLabel[result]}
+              {t(resultKey(result))}
             </span>
           )}
         </div>

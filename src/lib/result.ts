@@ -31,7 +31,14 @@ export function perspective(fixture: Fixture): Perspective {
   }
 }
 
-export const resultLabel: Record<MatchResult, string> = { W: 'Win', D: 'Draw', L: 'Loss' }
+// Translation key for a result, so W/D/L reads in the active language wherever
+// it's spelled out (card footers, form-square tooltips).
+export const resultKey = (r: MatchResult) => `result.${r}` as const
+
+// The single letter shown inside a form square or result badge. Turkish uses
+// G/B/M, so it can't just be the MatchResult itself — otherwise a Turkish table
+// would read "L W W" next to a record written "2G 0B 1M".
+export const resultShortKey = (r: MatchResult) => `resultShort.${r}` as const
 
 // Tailwind classes rather than raw hex so W/D/L reads identically everywhere it
 // appears — form squares, fixture cards, result strips — from one definition.

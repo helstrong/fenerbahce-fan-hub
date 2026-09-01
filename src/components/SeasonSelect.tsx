@@ -1,4 +1,5 @@
 import { useSeason } from '../data/SeasonContext'
+import { useI18n } from '../i18n/I18nContext'
 
 // "2025-2026" → "2025/26"
 const label = (s: string) => {
@@ -7,11 +8,12 @@ const label = (s: string) => {
 }
 
 export default function SeasonSelect() {
+  const { t } = useI18n()
   const { season, setSeason, seasons, status } = useSeason()
 
   return (
     <label className="flex shrink-0 items-center gap-1.5 text-[11px]">
-      <span className="uppercase tracking-[0.08em] text-white/40">Season</span>
+      <span className="uppercase tracking-[0.08em] text-white/40">{t('chrome.season')}</span>
       <select
         value={season}
         onChange={(e) => setSeason(e.target.value)}

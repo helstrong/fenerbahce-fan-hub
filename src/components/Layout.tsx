@@ -1,15 +1,19 @@
 import type { ReactNode } from 'react'
 import { NavLink } from 'react-router-dom'
 import Crest from './Crest'
+import Footer from './Footer'
 import Icon from './Icon'
+import LanguageToggle from './LanguageToggle'
+import { useI18n } from '../i18n/I18nContext'
+import type { TranslationKey } from '../i18n/strings'
 
-const nav = [
-  { to: '/', label: 'Home', icon: 'home', end: true },
-  { to: '/fixtures', label: 'Fixtures', icon: 'fixtures', end: false },
-  { to: '/standings', label: 'Table', icon: 'standings', end: false },
-  { to: '/squad', label: 'Squad', icon: 'squad', end: false },
-  { to: '/club', label: 'Club', icon: 'club', end: false },
-  { to: '/news', label: 'News', icon: 'news', end: false },
+const nav: { to: string; label: TranslationKey; icon: string; end: boolean }[] = [
+  { to: '/', label: 'nav.home', icon: 'home', end: true },
+  { to: '/fixtures', label: 'nav.fixtures', icon: 'fixtures', end: false },
+  { to: '/standings', label: 'nav.table', icon: 'standings', end: false },
+  { to: '/squad', label: 'nav.squad', icon: 'squad', end: false },
+  { to: '/club', label: 'nav.club', icon: 'club', end: false },
+  { to: '/news', label: 'nav.news', icon: 'news', end: false },
 ]
 
 interface LayoutProps {
@@ -21,6 +25,8 @@ interface LayoutProps {
 }
 
 export default function Layout({ children, live = false, onRefresh, refreshing = false, badge }: LayoutProps) {
+  const { t } = useI18n()
+
   return (
     <div className="min-h-screen pb-[calc(6rem+env(safe-area-inset-bottom))] md:pb-0">
       {/* Installed on iOS the status bar is translucent over the page, so the
@@ -36,7 +42,7 @@ export default function Layout({ children, live = false, onRefresh, refreshing =
             Fan Hub
           </span>
 
-          <div className="ml-auto flex items-center gap-2.5">
+          <div className="ml-auto flex items-center gap-2">
             <nav className="hidden gap-1 md:flex">
               {nav.map((n) => (
                 <NavLink
@@ -49,31 +55,31 @@ export default function Layout({ children, live = false, onRefresh, refreshing =
                     }`
                   }
                 >
-                  {n.label}
+                  {t(n.label)}
                 </NavLink>
               ))}
             </nav>
 
+            <LanguageToggle />
+
             {/* Whether the numbers on screen came from the live provider or the
                 bundled sample set — worth stating plainly, not just implying. */}
             <span
-              className={`flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.08em] ${
+              className={`hidden items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.08em] sm:flex ${
                 live ? 'text-fener-yellow' : 'text-white/45'
               }`}
             >
-              <span
-                className={`h-1.5 w-1.5 rounded-full ${live ? 'bg-fener-yellow' : 'bg-white/40'}`}
-              />
-              {live ? 'Live' : 'Sample'}
+              <span className={`h-1.5 w-1.5 rounded-full ${live ? 'bg-fener-yellow' : 'bg-white/40'}`} />
+              {live ? t('chrome.live') : t('chrome.sample')}
             </span>
 
             {onRefresh && (
               <button
                 onClick={onRefresh}
                 disabled={refreshing}
-                title="Refresh data"
-                aria-label="Refresh data"
-                className="flex h-[30px] w-[30px] items-center justify-center rounded-[9px] bg-white/[0.08] text-white/75 transition hover:bg-white/[0.16] disabled:opacity-50"
+                title={t('chrome.refresh')}
+                aria-label={t('chrome.refresh')}
+                className="flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-[9px] bg-white/[0.08] text-white/75 transition hover:bg-white/[0.16] disabled:opacity-50"
               >
                 <svg
                   className={`h-3.5 w-3.5 ${refreshing ? 'animate-spin' : ''}`}
@@ -94,6 +100,7 @@ export default function Layout({ children, live = false, onRefresh, refreshing =
       </header>
 
       <main className="mx-auto max-w-5xl px-4 py-6">{children}</main>
+      <Footer />
 
       {/* Fixed to the viewport rather than the body, so it needs its own
           horizontal insets as well as clearance for the home indicator. */}
@@ -112,7 +119,7 @@ export default function Layout({ children, live = false, onRefresh, refreshing =
             {({ isActive }) => (
               <>
                 <Icon name={n.icon} className="h-[19px] w-[19px]" />
-                <span>{n.label}</span>
+                <span className="max-w-full truncate px-0.5">{t(n.label)}</span>
                 <span
                   className={`h-0.5 w-[18px] rounded-full ${isActive ? 'bg-fener-yellow' : 'bg-transparent'}`}
                 />

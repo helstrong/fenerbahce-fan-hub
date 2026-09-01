@@ -1,7 +1,8 @@
 import { roundLabel } from '../data/api'
 import type { Fixture } from '../data/types'
+import { useI18n } from '../i18n/I18nContext'
 import { fmtMatchTime } from '../lib/format'
-import { perspective, resultBg, resultBorder, resultInk, resultLabel } from '../lib/result'
+import { perspective, resultBg, resultBorder, resultInk, resultKey, resultShortKey } from '../lib/result'
 
 // Both strips read the match from Fenerbahçe's side and carry the result as a
 // coloured left edge, so a run of them scans as a form guide on its own.
@@ -14,6 +15,7 @@ const scoreline = (p: ReturnType<typeof perspective>) =>
 // Home's "Last result": the scoreline leads at full broadcast scale, with the
 // W/D/L badge closing the row.
 export function ResultStrip({ fixture }: { fixture: Fixture }) {
+  const { t, locale } = useI18n()
   const p = perspective(fixture)
 
   return (
@@ -37,16 +39,16 @@ export function ResultStrip({ fixture }: { fixture: Fixture }) {
           {p.atHome ? 'vs' : '@'} {p.opponent.name}
         </span>
         <span className="truncate text-[11px] text-white/50">
-          {[fmtMatchTime(fixture.date), fixture.venue].filter(Boolean).join(' · ')}
+          {[fmtMatchTime(fixture.date, locale), fixture.venue].filter(Boolean).join(' · ')}
         </span>
       </div>
 
       {p.result && (
         <span
-          title={resultLabel[p.result]}
+          title={t(resultKey(p.result))}
           className={`ml-auto flex h-7 w-7 shrink-0 items-center justify-center rounded-lg font-display text-[15px] font-bold ${resultBg[p.result]} ${resultInk[p.result]}`}
         >
-          {p.result}
+          {t(resultShortKey(p.result))}
         </span>
       )}
     </div>
