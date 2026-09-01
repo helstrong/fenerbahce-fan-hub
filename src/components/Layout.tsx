@@ -33,14 +33,17 @@ export default function Layout({ children, live = false, onRefresh, refreshing =
           header carries its inset as extra top padding. */}
       <header className="sticky top-0 z-30 border-b border-white/10 bg-fener-navy-dark/90 pt-[env(safe-area-inset-top)] backdrop-blur-md">
         <div className="mx-auto flex max-w-5xl items-center gap-2.5 px-4 py-3">
-          {badge ? (
-            <img src={badge} alt="Fenerbahçe crest" className="h-7 w-7 shrink-0 object-contain" />
-          ) : (
-            <Crest className="h-7 w-7 shrink-0" />
-          )}
-          <span className="font-display text-[15px] font-semibold uppercase tracking-[0.14em]">
-            Fan Hub
-          </span>
+          {/* The crest and wordmark are the usual way back to the dashboard. */}
+          <NavLink to="/" end className="flex shrink-0 items-center gap-2.5" aria-label={t('nav.home')}>
+            {badge ? (
+              <img src={badge} alt={t('a11y.crest', { name: 'Fenerbahçe' })} className="h-7 w-7 shrink-0 object-contain" />
+            ) : (
+              <Crest className="h-7 w-7 shrink-0" />
+            )}
+            <span className="font-display text-[15px] font-semibold uppercase tracking-[0.14em]">
+              Fan Hub
+            </span>
+          </NavLink>
 
           <div className="ml-auto flex items-center gap-2">
             <nav className="hidden gap-1 md:flex">

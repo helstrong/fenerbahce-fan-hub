@@ -1,8 +1,9 @@
-import { FENER_ID, roundLabel } from '../data/api'
+import { FENER_ID } from '../data/api'
 import type { Fixture, Team } from '../data/types'
 import { useI18n } from '../i18n/I18nContext'
 import { fmtMatchTime } from '../lib/format'
 import { perspective, resultFg, resultKey } from '../lib/result'
+import { useRoundLabel } from '../lib/useRoundLabel'
 import TeamBadge from './TeamBadge'
 
 // The fixtures-list card: competition and kick-off across the top, the two
@@ -10,9 +11,10 @@ import TeamBadge from './TeamBadge'
 // round/venue plus the result along the bottom.
 export default function MatchCard({ fixture }: { fixture: Fixture }) {
   const { t, locale } = useI18n()
+  const label = useRoundLabel()
   const finished = fixture.status === 'finished'
   const { result } = perspective(fixture)
-  const round = roundLabel(fixture)
+  const round = label(fixture)
   const meta = [round, fixture.venue].filter(Boolean).join(' · ')
 
   return (

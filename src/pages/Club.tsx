@@ -8,7 +8,7 @@ import { fmtNumber } from '../lib/format'
 const href = (url?: string) => (url ? (/^https?:\/\//.test(url) ? url : `https://${url}`) : undefined)
 
 export default function Club({ data }: { data: AppData }) {
-  const { t, locale } = useI18n()
+  const { t, locale, lang } = useI18n()
   const club = data.club
 
   if (!club) {
@@ -33,7 +33,12 @@ export default function Club({ data }: { data: AppData }) {
       <Hero club={club} />
 
       {club.description && (
-        <p className="text-[13px] leading-relaxed text-white/70 text-pretty">{club.description}</p>
+        <div>
+          <p className="text-[13px] leading-relaxed text-white/70 text-pretty">{club.description}</p>
+          {/* The provider ships 15 description languages but no Turkish one, so
+              in Turkish this is English prose. Better to say so than to hide it. */}
+          {lang !== 'en' && <p className="mt-1.5 text-[10px] text-white/30">{t('common.englishOnly')}</p>}
+        </div>
       )}
 
       <section>
@@ -87,7 +92,7 @@ function Hero({ club }: { club: ClubProfile }) {
         {club.badge ? (
           <img
             src={club.badge}
-            alt={`${club.name} crest`}
+            alt={t('a11y.crest', { name: club.name })}
             className="h-16 w-16 shrink-0 object-contain sm:h-[72px] sm:w-[72px]"
           />
         ) : (
@@ -200,7 +205,7 @@ function Kits({ kits }: { kits: Kit[] }) {
           >
             <img
               src={k.image}
-              alt={`${k.season} ${k.type} kit`}
+              alt={t('a11y.kit', { season: k.season, type: k.type })}
               loading="lazy"
               className="mx-auto h-28 object-contain"
             />

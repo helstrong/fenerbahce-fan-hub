@@ -10,9 +10,9 @@ import {
   fetchPlayers,
   fetchSeasonFixtures,
   fetchStandings,
-  roundLabel,
+  roundRef,
 } from './theSportsDb'
-import type { CompetitionStandings, KnockoutStage } from './theSportsDb'
+import type { CompetitionStandings, KnockoutStage, RoundRef } from './theSportsDb'
 import { fetchNews } from './news'
 import {
   club as sampleClub,
@@ -24,8 +24,8 @@ import {
 } from './seed'
 import type { AppData, Fixture, PlayerCareer } from './types'
 
-export type { CompetitionStandings, KnockoutStage }
-export { roundLabel, fetchHeadToHead }
+export type { CompetitionStandings, KnockoutStage, RoundRef }
+export { roundRef, fetchHeadToHead }
 
 // The single entry point every screen reads from. Swap the data source by
 // toggling VITE_USE_SAMPLE in .env — the return shape (AppData) never changes.

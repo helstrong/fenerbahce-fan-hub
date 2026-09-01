@@ -18,6 +18,8 @@ const en = {
   'chrome.sample': 'Sample',
   'chrome.refresh': 'Refresh data',
   'chrome.language': 'Change language',
+  'a11y.crest': '{name} crest',
+  'a11y.kit': '{season} {type} kit',
   'chrome.season': 'Season',
   'chrome.competition': 'Competition',
 
@@ -30,6 +32,18 @@ const en = {
   'common.played': 'played',
   'common.scored': 'scored',
   'common.conceded': 'conceded',
+
+  'round.matchday': 'Matchday {n}',
+  'round.round': 'Round {n}',
+  'round.qualifying': 'Qualifying',
+  'round.playoff': 'Knockout Play-off',
+  'round.r16': 'Round of 16',
+  'round.quarter': 'Quarter-final',
+  'round.semi': 'Semi-final',
+  'round.final': 'Final',
+  'round.knockout': 'Knockout stage',
+
+  'common.englishOnly': 'Description available in English only.',
 
   'result.W': 'Win',
   'result.D': 'Draw',
@@ -135,6 +149,8 @@ const en = {
   'player.weight': 'Weight',
   'player.born': 'Born',
   'player.signing': 'Signing',
+  'player.appsShort': 'app',
+  'player.goalsShort': 'g',
   'player.career': 'Career',
   'player.honours': 'Honours',
   'player.formerClubs': 'Former clubs',
@@ -187,6 +203,8 @@ const tr: Record<TranslationKey, string> = {
   'chrome.sample': 'Örnek',
   'chrome.refresh': 'Verileri yenile',
   'chrome.language': 'Dili değiştir',
+  'a11y.crest': '{name} arması',
+  'a11y.kit': '{season} {type} forma',
   'chrome.season': 'Sezon',
   'chrome.competition': 'Turnuva',
 
@@ -199,6 +217,18 @@ const tr: Record<TranslationKey, string> = {
   'common.played': 'maç',
   'common.scored': 'attı',
   'common.conceded': 'yedi',
+
+  'round.matchday': '{n}. Hafta',
+  'round.round': '{n}. Tur',
+  'round.qualifying': 'Eleme Turu',
+  'round.playoff': 'Play-off Turu',
+  'round.r16': 'Son 16 Turu',
+  'round.quarter': 'Çeyrek Final',
+  'round.semi': 'Yarı Final',
+  'round.final': 'Final',
+  'round.knockout': 'Eleme turu',
+
+  'common.englishOnly': 'Açıklama yalnızca İngilizce olarak mevcut.',
 
   'result.W': 'Galibiyet',
   'result.D': 'Beraberlik',
@@ -303,6 +333,8 @@ const tr: Record<TranslationKey, string> = {
   'player.weight': 'Kilo',
   'player.born': 'Doğum yeri',
   'player.signing': 'Transfer',
+  'player.appsShort': 'maç',
+  'player.goalsShort': 'gol',
   'player.career': 'Kariyer',
   'player.honours': 'Kupalar',
   'player.formerClubs': 'Eski kulüpler',

@@ -47,7 +47,7 @@ export default function Squad({ data }: { data: AppData }) {
 // One dense row per player, expanding to the full profile: bio facts the roster
 // already carries, plus career history fetched on first open.
 function PlayerRow({ player }: { player: Player }) {
-  const { t } = useI18n()
+  const { t, lang } = useI18n()
   const [open, setOpen] = useState(false)
 
   const facts: [string, string][] = []
@@ -120,7 +120,10 @@ function PlayerRow({ player }: { player: Player }) {
           )}
 
           {player.description && (
-            <p className="line-clamp-6 text-[11px] leading-relaxed text-white/55">{player.description}</p>
+            <div>
+              <p className="line-clamp-6 text-[11px] leading-relaxed text-white/55">{player.description}</p>
+              {lang !== 'en' && <p className="mt-1 text-[10px] text-white/30">{t('common.englishOnly')}</p>}
+            </div>
           )}
 
           <Career playerId={player.id} />
@@ -175,9 +178,9 @@ function Career({ playerId }: { playerId: string }) {
                 {(s.appearances != null || s.goals != null) && (
                   <span className="ml-auto shrink-0 font-display text-xs font-bold text-white/60">
                     {s.appearances ?? 0}
-                    <span className="px-0.5 font-sans text-[9px] font-normal text-white/35">app</span>
+                    <span className="px-0.5 font-sans text-[9px] font-normal text-white/35">{t('player.appsShort')}</span>
                     {s.goals ?? 0}
-                    <span className="pl-0.5 font-sans text-[9px] font-normal text-white/35">g</span>
+                    <span className="pl-0.5 font-sans text-[9px] font-normal text-white/35">{t('player.goalsShort')}</span>
                   </span>
                 )}
               </li>

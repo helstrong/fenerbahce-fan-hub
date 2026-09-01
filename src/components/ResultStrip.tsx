@@ -1,8 +1,9 @@
-import { roundLabel } from '../data/api'
+import type { RoundRef } from '../data/api'
 import type { Fixture } from '../data/types'
 import { useI18n } from '../i18n/I18nContext'
 import { fmtMatchTime } from '../lib/format'
 import { perspective, resultBg, resultBorder, resultInk, resultKey, resultShortKey } from '../lib/result'
+import { useRoundLabel } from '../lib/useRoundLabel'
 
 // Both strips read the match from Fenerbahçe's side and carry the result as a
 // coloured left edge, so a run of them scans as a form guide on its own.
@@ -57,9 +58,11 @@ export function ResultStrip({ fixture }: { fixture: Fixture }) {
 
 // A knockout tie on the Tables page: the round leads as a yellow eyebrow, since
 // which stage it was is the thing you're scanning for.
-export function TieRow({ fixture, label }: { fixture: Fixture; label?: string }) {
+export function TieRow({ fixture, round: stageRound }: { fixture: Fixture; round?: RoundRef }) {
+  const { t } = useI18n()
+  const roundLabel = useRoundLabel()
   const p = perspective(fixture)
-  const round = label ?? roundLabel(fixture)
+  const round = roundLabel(stageRound ?? fixture)
 
   return (
     <div

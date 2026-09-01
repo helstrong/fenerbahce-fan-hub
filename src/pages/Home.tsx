@@ -6,7 +6,7 @@ import { ResultStrip, TieRow } from '../components/ResultStrip'
 import SeasonSelect from '../components/SeasonSelect'
 import Stripes from '../components/Stripes'
 import TeamBadge from '../components/TeamBadge'
-import { FENER_ID, IS_FREE_KEY, lastResult, nextMatch, roundLabel, standingFor } from '../data/api'
+import { FENER_ID, IS_FREE_KEY, lastResult, nextMatch, standingFor } from '../data/api'
 import type { KnockoutStage } from '../data/api'
 import { useSeason, useSelectedCompetition } from '../data/SeasonContext'
 import type { AppData, Fixture, Standing } from '../data/types'
@@ -14,9 +14,11 @@ import { useI18n } from '../i18n/I18nContext'
 import type { Translate } from '../i18n/I18nContext'
 import { fmtDate, fmtMatchTime, ordinal } from '../lib/format'
 import { useCountdown } from '../lib/useCountdown'
+import { useRoundLabel } from '../lib/useRoundLabel'
 
 export default function Home({ data }: { data: AppData }) {
   const { t, locale } = useI18n()
+  const roundLabel = useRoundLabel()
   const last = lastResult(data)
   const next = nextMatch(data)
   const fener = standingFor(data, FENER_ID)
@@ -132,6 +134,7 @@ export default function Home({ data }: { data: AppData }) {
 // content column on desktop.
 function MatchdayHero({ fixture }: { fixture?: Fixture }) {
   const { t, locale } = useI18n()
+  const roundLabel = useRoundLabel()
   const countdown = useCountdown(fixture?.date)
 
   const shell =
@@ -308,7 +311,7 @@ function KnockoutMini({ stages, t }: { stages: KnockoutStage[]; t: Translate }) 
         {t('home.knockoutStage')}
       </p>
       {stages.map((stage) =>
-        stage.fixtures.map((f) => <TieRow key={f.id} fixture={f} label={stage.label} />),
+        stage.fixtures.map((f) => <TieRow key={f.id} fixture={f} round={stage.round} />),
       )}
     </div>
   )

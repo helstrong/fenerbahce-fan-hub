@@ -320,7 +320,7 @@ function KnockoutBracket({ stages }: { stages: KnockoutStage[] }) {
   return (
     <div className="grid gap-2.5 md:grid-cols-2">
       {stages.map((stage) =>
-        stage.fixtures.map((f) => <TieRow key={f.id} fixture={f} label={stage.label} />),
+        stage.fixtures.map((f) => <TieRow key={f.id} fixture={f} round={stage.round} />),
       )}
     </div>
   )

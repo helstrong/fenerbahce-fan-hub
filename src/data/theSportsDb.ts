@@ -318,7 +318,7 @@ function computeStandingsFromFixtures(fixtures: Fixture[]): Standing[] {
 }
 
 export interface KnockoutStage {
-  label: string
+  round: RoundRef
   fixtures: Fixture[]
 }
 
@@ -358,21 +358,29 @@ function isLeaguePhase(f: Fixture): boolean {
 // format — the codes for the business end (Ro16 onward) are stable across
 // both, but the play-off round before it uses a different code per era
 // (160 pre-2024, 32 post-2024), so both are mapped defensively.
-const KNOCKOUT_STAGE_LABELS: Record<string, string> = {
-  '400': 'Qualifying',
-  '160': 'Knockout Play-off',
-  '32': 'Knockout Play-off',
-  '16': 'Round of 16',
-  '125': 'Quarter-final',
-  '150': 'Semi-final',
-  '200': 'Final',
+// A round resolves to a translation id plus an optional number, rather than to
+// finished English text — the data layer has no access to the active language,
+// so the UI does the wording (see lib/useRoundLabel).
+export interface RoundRef {
+  id: 'matchday' | 'round' | 'qualifying' | 'playoff' | 'r16' | 'quarter' | 'semi' | 'final' | 'knockout'
+  n?: string
+}
+
+const KNOCKOUT_STAGE_IDS: Record<string, RoundRef['id']> = {
+  '400': 'qualifying',
+  '160': 'playoff',
+  '32': 'playoff',
+  '16': 'r16',
+  '125': 'quarter',
+  '150': 'semi',
+  '200': 'final',
 }
 
 // Resolves a fixture's round code into a human label appropriate to its
 // competition: the Swiss-format league-phase matchday for UEFA competitions'
 // rounds 1-8, a named knockout stage for UEFA/Turkish Cup knockout rounds, or
 // a literal round number for anything else (domestic league, friendlies).
-export function roundLabel(fixture: Fixture): string | undefined {
+export function roundRef(fixture: Fixture): RoundRef | undefined {
   const round = fixture.round
   // '0' consistently means "not set" in this data (seen on friendlies and on
   // at least one cup fixture that was clearly a later round) — never show it.
@@ -380,34 +388,35 @@ export function roundLabel(fixture: Fixture): string | undefined {
 
   if (fixture.competition.startsWith('UEFA ')) {
     const n = Number(round)
-    if (Number.isFinite(n) && n >= 1 && n <= 8) return `Matchday ${round}`
-    return KNOCKOUT_STAGE_LABELS[round] ?? 'Knockout stage'
+    if (Number.isFinite(n) && n >= 1 && n <= 8) return { id: 'matchday', n: round }
+    return { id: KNOCKOUT_STAGE_IDS[round] ?? 'knockout' }
   }
 
   if (fixture.competition === 'Turkish Cup') {
-    if (KNOCKOUT_STAGE_LABELS[round]) return KNOCKOUT_STAGE_LABELS[round]
-    if (/^\d+$/.test(round)) return `Round ${round}`
-    return 'Knockout stage'
+    if (KNOCKOUT_STAGE_IDS[round]) return { id: KNOCKOUT_STAGE_IDS[round] }
+    if (/^\d+$/.test(round)) return { id: 'round', n: round }
+    return { id: 'knockout' }
   }
 
-  return `Round ${round}`
+  return { id: 'round', n: round }
 }
 
 // Groups a team's own matches into knockout stages (Qualifying, Play-off,
 // Round of 16, ...), ordered by when each stage was actually played.
 function buildKnockoutStages(fixtures: Fixture[]): KnockoutStage[] {
-  const byLabel = new Map<string, Fixture[]>()
+  // Keyed by a composed id rather than by display text, so grouping no longer
+  // depends on the label's wording.
+  const byStage = new Map<string, KnockoutStage>()
   for (const f of fixtures) {
-    const label = roundLabel(f) ?? 'Knockout stage'
-    const list = byLabel.get(label) ?? []
-    list.push(f)
-    byLabel.set(label, list)
+    const round = roundRef(f) ?? ({ id: 'knockout' } as RoundRef)
+    const key = `${round.id}:${round.n ?? ''}`
+    const stage = byStage.get(key) ?? { round, fixtures: [] }
+    stage.fixtures.push(f)
+    byStage.set(key, stage)
   }
 
-  const stages = [...byLabel.entries()].map(([label, fixtures]) => {
-    fixtures.sort((a, b) => +new Date(a.date) - +new Date(b.date))
-    return { label, fixtures }
-  })
+  const stages = [...byStage.values()]
+  for (const stage of stages) stage.fixtures.sort((a, b) => +new Date(a.date) - +new Date(b.date))
   stages.sort((a, b) => +new Date(a.fixtures[0].date) - +new Date(b.fixtures[0].date))
   return stages
 }
