@@ -18,9 +18,9 @@ export default function MatchCard({ fixture }: { fixture: Fixture }) {
   const meta = [round, fixture.venue].filter(Boolean).join(' · ')
 
   return (
-    <div className="rounded-2xl border border-white/10 bg-fener-navy px-4 py-3.5">
+    <div className="min-w-0 rounded-2xl border border-white/10 bg-fener-navy px-4 py-3.5">
       <div className="flex items-center justify-between gap-3 text-[10px] font-medium uppercase tracking-[0.08em]">
-        <span className="truncate text-fener-yellow">{fixture.competition}</span>
+        <span className="min-w-0 truncate text-fener-yellow">{fixture.competition}</span>
         <span className="shrink-0 text-white/45">{fmtMatchTime(fixture.date, locale)}</span>
       </div>
 
@@ -40,7 +40,7 @@ export default function MatchCard({ fixture }: { fixture: Fixture }) {
 
       {(meta || result) && (
         <div className="mt-3 flex items-center justify-between gap-3 border-t border-white/[0.08] pt-2.5 text-[11px] text-white/45">
-          <span className="truncate">{meta}</span>
+          <span className="min-w-0 truncate">{meta}</span>
           {result && (
             <span
               className={`shrink-0 font-display text-xs font-bold uppercase tracking-[0.1em] ${resultFg[result]}`}

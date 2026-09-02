@@ -152,8 +152,8 @@ function LeagueTable({ competition }: { competition: CompetitionStandings }) {
                         {s.rank}
                       </span>
                     </td>
-                    <td className="py-2.5 pr-2">
-                      <div className="flex items-center gap-2">
+                    <td className="w-full max-w-0 py-2.5 pr-2">
+                      <div className="flex min-w-0 items-center gap-2">
                         <TeamBadge team={s.team} size={20} highlight={isFener} />
                         <span className="truncate text-[13px]">{s.team.name}</span>
                         {canExpand && (
