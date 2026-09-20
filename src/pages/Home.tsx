@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom'
+import Broadcasts from '../components/Broadcasts'
 import { SectionTitle, sectionLinkClass } from '../components/Card'
 import CompetitionSelect from '../components/CompetitionSelect'
 import FormGuide from '../components/FormGuide'
@@ -186,6 +187,8 @@ function MatchdayHero({ fixture }: { fixture?: Fixture }) {
         <span>{fmtMatchTime(fixture.date, locale)}</span>
         {fixture.venue && <span className="truncate text-right">{fixture.venue}</span>}
       </div>
+
+      <Broadcasts fixture={fixture} />
     </section>
   )
 }

@@ -10,10 +10,12 @@ import {
   fetchPlayers,
   fetchSeasonFixtures,
   fetchStandings,
+  fetchTvListings,
   roundRef,
 } from './theSportsDb'
 import type { CompetitionStandings, KnockoutStage, RoundRef } from './theSportsDb'
 import { fetchNews } from './news'
+import { rightsFor } from './broadcasts'
 import {
   club as sampleClub,
   fixtures as sampleFixtures,
@@ -22,7 +24,7 @@ import {
   players as samplePlayers,
   standings as sampleStandings,
 } from './seed'
-import type { AppData, Fixture, PlayerCareer } from './types'
+import type { AppData, Broadcast, Fixture, PlayerCareer } from './types'
 
 export type { CompetitionStandings, KnockoutStage, RoundRef }
 export { roundRef, fetchHeadToHead }
@@ -225,6 +227,34 @@ export function loadPlayerCareer(playerId: string): Promise<PlayerCareer> {
     throw e
   })
   careerCache.set(playerId, pending)
+  return pending
+}
+
+// ---- broadcasts (on demand) ---------------------------------------------
+// Curated rights first, since they're the ones that are actually populated and
+// name the home broadcaster; whatever live listings exist are appended as extra
+// countries. Deduped on channel name so a curated entry and a matching listing
+// don't both appear. Memoised per event for the session.
+const broadcastCache = new Map<string, Promise<Broadcast[]>>()
+
+export function loadBroadcasts(eventId: string, competition: string): Promise<Broadcast[]> {
+  const curated = rightsFor(competition)
+  if (!USE_LIVE) return Promise.resolve(curated)
+
+  const hit = broadcastCache.get(eventId)
+  if (hit) return hit
+
+  const pending = fetchTvListings(eventId)
+    // A missing or failed listing must not lose the curated rights, which are
+    // the part most likely to be useful.
+    .catch(() => [] as Broadcast[])
+    .then((listings) => {
+      const seen = new Set(curated.map((b) => b.channel.toLowerCase()))
+      const extra = listings.filter((b) => !seen.has(b.channel.toLowerCase()))
+      return [...curated, ...extra]
+    })
+
+  broadcastCache.set(eventId, pending)
   return pending
 }
 

@@ -1,5 +1,7 @@
 import { LEAGUE_ID, SEASON, SPORTSDB_BASE, TEAM_ID } from './config'
+import { countryTag } from './broadcasts'
 import type {
+  Broadcast,
   ClubProfile,
   Fixture,
   FixtureStatus,
@@ -534,6 +536,23 @@ export async function fetchHeadToHead(
     .sort((a, b) => +new Date(b.date) - +new Date(a.date))
 
   return { fixtures, seasons }
+}
+
+// ---- TV listings ---------------------------------------------------------
+// Sparse for this club (see data/broadcasts.ts), so this only ever supplements
+// the curated rights table rather than standing on its own.
+export async function fetchTvListings(eventId: string): Promise<Broadcast[]> {
+  const { tvevent } = await request('lookuptv.php', { id: eventId })
+  const rows: any[] = tvevent ?? []
+
+  return rows
+    .map((r) => ({
+      country: clean(r.strCountry) ?? '',
+      channel: clean(r.strChannel) ?? '',
+      logo: clean(r.strLogo),
+    }))
+    .filter((r) => r.country && r.channel)
+    .map((r) => ({ region: countryTag(r.country), channel: r.channel, logo: r.logo }))
 }
 
 // ---- Squad (bio only, ~10 players on the free tier) ---------------------

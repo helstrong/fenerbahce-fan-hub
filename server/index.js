@@ -33,6 +33,8 @@ const ALLOWED = new Set([
   // Player career history, loaded on demand when a squad row is expanded.
   'lookuphonours.php',
   'lookupformerteams.php',
+  // TV listings for a single event, used to supplement the curated rights map.
+  'lookuptv.php',
 ])
 
 // Small in-memory cache: cuts upstream calls and blunts quota abuse.

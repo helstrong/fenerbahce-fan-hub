@@ -107,6 +107,14 @@ export interface Kit {
   image: string
 }
 
+// Where a match can be watched. `region` is a short tag for the chip — 'TR',
+// 'INT', or a country code derived from the provider's country name.
+export interface Broadcast {
+  region: string
+  channel: string
+  logo?: string
+}
+
 // From a curated, trusted-source-filtered news feed — see server/news.js.
 export interface NewsItem {
   title: string
