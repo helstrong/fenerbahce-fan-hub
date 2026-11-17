@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { loadBroadcasts } from '../data/api'
 import { rightsFor } from '../data/broadcasts'
+import { useSport } from '../data/SportContext'
 import type { Broadcast, Fixture } from '../data/types'
 import { useI18n } from '../i18n/I18nContext'
 import Icon from './Icon'
@@ -13,13 +14,14 @@ import Icon from './Icon'
 // in a moment later (see loadBroadcasts); most fixtures have none.
 export default function Broadcasts({ fixture }: { fixture: Fixture }) {
   const { t } = useI18n()
-  const [list, setList] = useState<Broadcast[]>(() => rightsFor(fixture.competition))
+  const { sport } = useSport()
+  const [list, setList] = useState<Broadcast[]>(() => rightsFor(sport, fixture.competition))
 
   useEffect(() => {
     let cancelled = false
-    setList(rightsFor(fixture.competition))
+    setList(rightsFor(sport, fixture.competition))
 
-    loadBroadcasts(fixture.id, fixture.competition)
+    loadBroadcasts(sport, fixture.id, fixture.competition)
       .then((merged) => {
         if (!cancelled) setList(merged)
       })
@@ -30,7 +32,7 @@ export default function Broadcasts({ fixture }: { fixture: Fixture }) {
     return () => {
       cancelled = true
     }
-  }, [fixture.id, fixture.competition])
+  }, [sport, fixture.id, fixture.competition])
 
   // No known rights and no listings: show nothing rather than an empty shelf.
   if (!list.length) return null

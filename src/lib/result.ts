@@ -1,4 +1,4 @@
-import { FENER_ID } from '../data/api'
+import { isFener } from '../data/api'
 import type { Fixture, Team } from '../data/types'
 
 export type MatchResult = 'W' | 'D' | 'L'
@@ -17,7 +17,7 @@ export interface Perspective {
 // stored. Derived once here so the result colours, the score order and the
 // opponent name can't drift apart between the cards that show them.
 export function perspective(fixture: Fixture): Perspective {
-  const atHome = fixture.home.id === FENER_ID
+  const atHome = isFener(fixture.home.id)
   const ours = atHome ? fixture.homeScore : fixture.awayScore
   const theirs = atHome ? fixture.awayScore : fixture.homeScore
   const played = fixture.status === 'finished' && ours != null && theirs != null

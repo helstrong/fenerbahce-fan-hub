@@ -26,15 +26,20 @@ export interface Standing {
   team: Team
   played: number
   won: number
-  drawn: number
+  drawn: number // always 0 in basketball
   lost: number
-  gf: number
+  gf: number // goals in football, points scored in basketball
   ga: number
-  points: number
+  points: number // league points in football; basketball ranks on wins, so this is the win count
   form?: string // last 5 results, e.g. "DWWLD"
 }
 
-export type Position = 'Goalkeeper' | 'Defender' | 'Midfielder' | 'Forward'
+// Football's four lines and basketball's three groups. "Forward" is shared:
+// it means a striker in one sport and a wing/post player in the other, but the
+// squad filters are per sport (see pages/Squad), so the two never mix.
+export type FootballPosition = 'Goalkeeper' | 'Defender' | 'Midfielder' | 'Forward'
+export type BasketballPosition = 'Guard' | 'Forward' | 'Center'
+export type Position = FootballPosition | BasketballPosition
 
 // The free tier carries player bio only (no match stats), so this is who they
 // are rather than how they've performed.

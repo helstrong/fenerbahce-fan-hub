@@ -1,3 +1,4 @@
+import type { Sport } from './sports'
 import type { Broadcast } from './types'
 
 // ---------------------------------------------------------------------------
@@ -19,13 +20,15 @@ import type { Broadcast } from './types'
 // ---------------------------------------------------------------------------
 
 /** Matched against a fixture's competition name, which varies by source
- *  ("Süper Lig" vs "Turkish Super Lig"), so these are patterns not exact keys. */
+ *  ("Süper Lig" vs "Turkish Super Lig"), so these are patterns not exact keys.
+ *  Scoped by sport because the names overlap: the basketball league arrives as
+ *  "Turkish Basketbol Super Ligi", which a football pattern would also match. */
 interface RightsEntry {
   match: RegExp
   broadcasters: Broadcast[]
 }
 
-const RIGHTS: RightsEntry[] = [
+const FOOTBALL_RIGHTS: RightsEntry[] = [
   {
     // Domestic league — beIN Sports holds the Turkish rights.
     match: /s[üu]per lig/i,
@@ -46,10 +49,23 @@ const RIGHTS: RightsEntry[] = [
   // ] },
 ]
 
+// Deliberately empty until confirmed for the current season — basketball
+// games show only whatever live listings the provider has. Add entries in the
+// same shape as above, e.g.:
+//
+// { match: /basketbol s[üu]per lig/i, broadcasters: [{ region: 'TR', channel: '…' }] },
+// { match: /euroleague/i,             broadcasters: [{ region: 'TR', channel: '…' }] },
+const BASKETBALL_RIGHTS: RightsEntry[] = []
+
+const RIGHTS: Record<Sport, RightsEntry[]> = {
+  football: FOOTBALL_RIGHTS,
+  basketball: BASKETBALL_RIGHTS,
+}
+
 /** The curated rights holders for a competition, or [] when we don't know. */
-export function rightsFor(competition: string): Broadcast[] {
+export function rightsFor(sport: Sport, competition: string): Broadcast[] {
   if (!competition) return []
-  return RIGHTS.find((r) => r.match.test(competition))?.broadcasters ?? []
+  return RIGHTS[sport].find((r) => r.match.test(competition))?.broadcasters ?? []
 }
 
 // Short tags for the region chip. The provider gives full country names; these

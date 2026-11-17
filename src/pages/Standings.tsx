@@ -6,9 +6,10 @@ import Pill from '../components/Pill'
 import { TieRow } from '../components/ResultStrip'
 import SeasonSelect from '../components/SeasonSelect'
 import TeamBadge from '../components/TeamBadge'
-import { FENER_ID, IS_FREE_KEY, LEAGUE_ID } from '../data/api'
+import { IS_FREE_KEY, isFener } from '../data/api'
 import type { CompetitionStandings, KnockoutStage } from '../data/api'
 import { useSeason, useSelectedCompetition } from '../data/SeasonContext'
+import { useSport } from '../data/SportContext'
 import type { Fixture, Team } from '../data/types'
 import { useI18n } from '../i18n/I18nContext'
 import { fmtDate } from '../lib/format'
@@ -91,22 +92,27 @@ function CompetitionView({ competition }: { competition: CompetitionStandings })
 
 function LeagueTable({ competition }: { competition: CompetitionStandings }) {
   const { t } = useI18n()
+  const basketball = useSport().sport === 'basketball'
   const [expanded, setExpanded] = useState<string | null>(null)
 
   const standings = competition.standings
   // Computed tables carry a form guide too now, so this keys off whether the
   // data actually has form rather than off which source produced it.
   const showForm = standings.some((s) => s.form)
-  const isLeague = competition.competitionId === LEAGUE_ID
+  const zone = competition.topZone
   const canExpand = competition.events.length > 0
-  // rank, club, P, W, D, L, GF, GA, GD, Pts (+ form) — the width the expanded
-  // detail row has to span.
-  const columns = 10 + (showForm ? 1 : 0)
+  // The width the expanded detail row has to span:
+  // football   rank, club, P, W, D, L, GF, GA, GD, Pts (+ form)
+  // basketball rank, club, P, PF, PA, +/-, W–L (+ form)
+  const columns = (basketball ? 7 : 10) + (showForm ? 1 : 0)
 
   // The design's mobile table is #/Club/P/GD/Pts/Form. The per-result breakdown
   // is real data the app already had, so rather than drop it, it's hidden at
   // phone width and returns from sm: up where there's room for it.
+  // Basketball's headline column is the win–loss record, which already says
+  // how many games were played, so P joins the hidden-on-phones set there.
   const wide = 'hidden px-1.5 py-2.5 text-center sm:table-cell'
+  const playedCol = basketball ? wide : 'px-1.5 py-2.5 text-center'
 
   return (
     <div>
@@ -116,23 +122,34 @@ function LeagueTable({ competition }: { competition: CompetitionStandings }) {
             <tr className="border-b border-white/10 text-[9px] font-semibold uppercase tracking-[0.1em] text-white/40">
               <th className="px-3 py-2.5 text-left">{t('table.rank')}</th>
               <th className="py-2.5 text-left">{t('table.club')}</th>
-              <th className="px-1.5 py-2.5 text-center">{t('table.played')}</th>
-              <th className={wide}>{t('table.won')}</th>
-              <th className={wide}>{t('table.drawn')}</th>
-              <th className={wide}>{t('table.lost')}</th>
-              <th className={wide}>{t('table.goalsFor')}</th>
-              <th className={wide}>{t('table.goalsAgainst')}</th>
-              <th className="px-1.5 py-2.5 text-center">{t('table.goalDiff')}</th>
-              <th className="px-2 py-2.5 text-right">{t('table.points')}</th>
+              <th className={playedCol}>{t('table.played')}</th>
+              {basketball ? (
+                <>
+                  <th className={wide}>{t('table.pointsFor')}</th>
+                  <th className={wide}>{t('table.pointsAgainst')}</th>
+                  <th className="px-1.5 py-2.5 text-center">{t('table.pointDiff')}</th>
+                  <th className="whitespace-nowrap px-2 py-2.5 text-right">{t('table.record')}</th>
+                </>
+              ) : (
+                <>
+                  <th className={wide}>{t('table.won')}</th>
+                  <th className={wide}>{t('table.drawn')}</th>
+                  <th className={wide}>{t('table.lost')}</th>
+                  <th className={wide}>{t('table.goalsFor')}</th>
+                  <th className={wide}>{t('table.goalsAgainst')}</th>
+                  <th className="px-1.5 py-2.5 text-center">{t('table.goalDiff')}</th>
+                  <th className="px-2 py-2.5 text-right">{t('table.points')}</th>
+                </>
+              )}
               {showForm && <th className="px-3 py-2.5 text-right">{t('table.form')}</th>}
             </tr>
           </thead>
           <tbody>
             {standings.map((s) => {
-              const isFener = s.team.id === FENER_ID
+              const ours = isFener(s.team.id)
               const isOpen = expanded === s.team.id
               const gd = s.gf - s.ga
-              const dim = isFener ? 'opacity-60' : 'text-white/60'
+              const dim = ours ? 'opacity-60' : 'text-white/60'
 
               return (
                 <Fragment key={s.team.id}>
@@ -140,13 +157,13 @@ function LeagueTable({ competition }: { competition: CompetitionStandings }) {
                     onClick={canExpand ? () => setExpanded(isOpen ? null : s.team.id) : undefined}
                     aria-expanded={canExpand ? isOpen : undefined}
                     className={`border-b border-white/[0.06] ${canExpand ? 'cursor-pointer' : ''} ${
-                      isFener ? 'bg-fener-yellow font-semibold text-fener-navy' : 'hover:bg-white/[0.04]'
+                      ours ? 'bg-fener-yellow font-semibold text-fener-navy' : 'hover:bg-white/[0.04]'
                     }`}
                   >
                     <td className="px-3 py-2.5">
                       <span
                         className={`font-display text-[15px] font-bold ${
-                          isFener ? '' : isLeague && s.rank <= 4 ? 'text-fener-yellow' : 'text-white/45'
+                          ours ? '' : zone && s.rank <= zone.n ? 'text-fener-yellow' : 'text-white/45'
                         }`}
                       >
                         {s.rank}
@@ -154,7 +171,7 @@ function LeagueTable({ competition }: { competition: CompetitionStandings }) {
                     </td>
                     <td className="w-full max-w-0 py-2.5 pr-2">
                       <div className="flex min-w-0 items-center gap-2">
-                        <TeamBadge team={s.team} size={20} highlight={isFener} />
+                        <TeamBadge team={s.team} size={20} highlight={ours} />
                         <span className="truncate text-[13px]">{s.team.name}</span>
                         {canExpand && (
                           <svg
@@ -172,16 +189,22 @@ function LeagueTable({ competition }: { competition: CompetitionStandings }) {
                         )}
                       </div>
                     </td>
-                    <td className={`px-1.5 py-2.5 text-center text-xs ${dim}`}>{s.played}</td>
-                    <td className={`${wide} text-xs ${dim}`}>{s.won}</td>
-                    <td className={`${wide} text-xs ${dim}`}>{s.drawn}</td>
-                    <td className={`${wide} text-xs ${dim}`}>{s.lost}</td>
+                    <td className={`${playedCol} text-xs ${dim}`}>{s.played}</td>
+                    {!basketball && (
+                      <>
+                        <td className={`${wide} text-xs ${dim}`}>{s.won}</td>
+                        <td className={`${wide} text-xs ${dim}`}>{s.drawn}</td>
+                        <td className={`${wide} text-xs ${dim}`}>{s.lost}</td>
+                      </>
+                    )}
                     <td className={`${wide} text-xs ${dim}`}>{s.gf}</td>
                     <td className={`${wide} text-xs ${dim}`}>{s.ga}</td>
                     <td className={`px-1.5 py-2.5 text-center text-xs ${dim}`}>
                       {gd > 0 ? `+${gd}` : gd}
                     </td>
-                    <td className="px-2 py-2.5 text-right font-display text-[17px] font-bold">{s.points}</td>
+                    <td className="whitespace-nowrap px-2 py-2.5 text-right font-display text-[17px] font-bold">
+                      {basketball ? `${s.won}–${s.lost}` : s.points}
+                    </td>
                     {showForm && (
                       <td className="px-3 py-2.5">
                         <FormGuide form={s.form} size="sm" className="justify-end" />
@@ -209,7 +232,7 @@ function LeagueTable({ competition }: { competition: CompetitionStandings }) {
 
       <p className="mt-3 text-[11px] leading-relaxed text-white/35">
         {canExpand && `${t('standings.expandHint')} `}
-        {isLeague && `${t('standings.top4')} `}
+        {zone && `${t(zone.note)} `}
         {IS_FREE_KEY && standings.length <= 6 && `${t('standings.freeTier')} `}
         {competition.note}
       </p>
@@ -252,7 +275,7 @@ function TeamDetail({
         </div>
       </div>
 
-      {team.id !== FENER_ID && (
+      {!isFener(team.id) && (
         <Link
           to={`/opponent/${team.id}?comp=${competitionId}`}
           state={{ team }}
@@ -267,14 +290,19 @@ function TeamDetail({
 
 function RecordCard({ label, record }: { label: string; record: SplitRecord }) {
   const { t } = useI18n()
+  const basketball = useSport().sport === 'basketball'
   return (
     <div className="rounded-xl border border-white/10 bg-white/[0.05] px-3 py-2.5">
       <div className="text-[9px] font-semibold uppercase tracking-[0.12em] text-white/40">{label}</div>
       <div className="mt-1.5 font-display text-lg font-bold">
         {record.won}
         <span className="px-0.5 font-sans text-[10px] font-normal text-white/40">{t('table.won')}</span>
-        {record.drawn}
-        <span className="px-0.5 font-sans text-[10px] font-normal text-white/40">{t('table.drawn')}</span>
+        {!basketball && (
+          <>
+            {record.drawn}
+            <span className="px-0.5 font-sans text-[10px] font-normal text-white/40">{t('table.drawn')}</span>
+          </>
+        )}
         {record.lost}
         <span className="px-0.5 font-sans text-[10px] font-normal text-white/40">{t('table.lost')}</span>
       </div>

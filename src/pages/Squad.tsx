@@ -2,15 +2,27 @@ import { useEffect, useState } from 'react'
 import PageHeader from '../components/PageHeader'
 import Pill from '../components/Pill'
 import { IS_FREE_KEY, loadPlayerCareer } from '../data/api'
-import type { AppData, Player, PlayerCareer } from '../data/types'
+import { useSport } from '../data/SportContext'
+import type { Sport } from '../data/sports'
+import type { AppData, Player, PlayerCareer, Position } from '../data/types'
 import { useI18n } from '../i18n/I18nContext'
 import type { TranslationKey } from '../i18n/strings'
 
-const filters = ['All', 'Goalkeeper', 'Defender', 'Midfielder', 'Forward'] as const
+const FILTERS: Record<Sport, Position[]> = {
+  football: ['Goalkeeper', 'Defender', 'Midfielder', 'Forward'],
+  basketball: ['Guard', 'Forward', 'Center'],
+}
+
+// The short tag on each row. "Forward" is in both sports but abbreviates
+// differently (FWD vs F), so basketball has its own set of keys.
+const shortKey = (sport: Sport, position: Position) =>
+  (sport === 'basketball' ? `posShortBasketball.${position}` : `posShort.${position}`) as TranslationKey
 
 export default function Squad({ data }: { data: AppData }) {
   const { t } = useI18n()
-  const [pos, setPos] = useState<(typeof filters)[number]>('All')
+  const { sport } = useSport()
+  const filters: ('All' | Position)[] = ['All', ...FILTERS[sport]]
+  const [pos, setPos] = useState<'All' | Position>('All')
   const players = data.players.filter((p) => pos === 'All' || p.position === pos)
 
   return (
@@ -48,6 +60,7 @@ export default function Squad({ data }: { data: AppData }) {
 // already carries, plus career history fetched on first open.
 function PlayerRow({ player }: { player: Player }) {
   const { t, lang } = useI18n()
+  const { sport } = useSport()
   const [open, setOpen] = useState(false)
 
   const facts: [string, string][] = []
@@ -87,7 +100,7 @@ function PlayerRow({ player }: { player: Player }) {
 
         <div className="flex shrink-0 flex-col items-end gap-0.5">
           <span className="text-[10px] font-semibold uppercase tracking-[0.1em] text-white/45">
-            {t(`posShort.${player.position}` as TranslationKey)}
+            {t(shortKey(sport, player.position))}
           </span>
           {player.height && <span className="text-[11px] text-white/35">{player.height}</span>}
         </div>
@@ -137,19 +150,20 @@ function PlayerRow({ player }: { player: Player }) {
 // players up front, which would be 74 requests on every squad visit.
 function Career({ playerId }: { playerId: string }) {
   const { t } = useI18n()
+  const { config } = useSport()
   const [state, setState] = useState<{ status: 'loading' | 'ready' | 'error'; data?: PlayerCareer }>({
     status: 'loading',
   })
 
   useEffect(() => {
     let cancelled = false
-    loadPlayerCareer(playerId)
+    loadPlayerCareer(config, playerId)
       .then((data) => !cancelled && setState({ status: 'ready', data }))
       .catch(() => !cancelled && setState({ status: 'error' }))
     return () => {
       cancelled = true
     }
-  }, [playerId])
+  }, [config, playerId])
 
   if (state.status === 'loading')
     return <p className="text-[11px] text-white/35">{t('player.loadingCareer')}</p>
@@ -175,12 +189,22 @@ function Career({ playerId }: { playerId: string }) {
                 <span className="shrink-0 text-white/35">
                   {[s.joined, s.departed].filter(Boolean).join('–')}
                 </span>
+                {/* Each figure only when the provider has it — basketball careers
+                    carry appearances but no goal tally. */}
                 {(s.appearances != null || s.goals != null) && (
                   <span className="ml-auto shrink-0 font-display text-xs font-bold text-white/60">
-                    {s.appearances ?? 0}
-                    <span className="px-0.5 font-sans text-[9px] font-normal text-white/35">{t('player.appsShort')}</span>
-                    {s.goals ?? 0}
-                    <span className="pl-0.5 font-sans text-[9px] font-normal text-white/35">{t('player.goalsShort')}</span>
+                    {s.appearances != null && (
+                      <>
+                        {s.appearances}
+                        <span className="px-0.5 font-sans text-[9px] font-normal text-white/35">{t('player.appsShort')}</span>
+                      </>
+                    )}
+                    {s.goals != null && (
+                      <>
+                        {s.goals}
+                        <span className="pl-0.5 font-sans text-[9px] font-normal text-white/35">{t('player.goalsShort')}</span>
+                      </>
+                    )}
                   </span>
                 )}
               </li>

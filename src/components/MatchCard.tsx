@@ -1,4 +1,4 @@
-import { FENER_ID } from '../data/api'
+import { isFener as isFenerId } from '../data/api'
 import type { Fixture, Team } from '../data/types'
 import { useI18n } from '../i18n/I18nContext'
 import { fmtMatchTime } from '../lib/format'
@@ -12,7 +12,9 @@ import TeamBadge from './TeamBadge'
 export default function MatchCard({ fixture }: { fixture: Fixture }) {
   const { t, locale } = useI18n()
   const label = useRoundLabel()
-  const finished = fixture.status === 'finished'
+  // A game can be marked finished a little before its score is filled in;
+  // show "vs" until there is one rather than "null–null".
+  const finished = fixture.status === 'finished' && fixture.homeScore != null && fixture.awayScore != null
   const { result } = perspective(fixture)
   const round = label(fixture)
   const meta = [round, fixture.venue].filter(Boolean).join(' · ')
@@ -55,7 +57,7 @@ export default function MatchCard({ fixture }: { fixture: Fixture }) {
 }
 
 function TeamLine({ team }: { team: Team }) {
-  const isFener = team.id === FENER_ID
+  const isFener = isFenerId(team.id)
   return (
     <div className="flex min-w-0 items-center gap-2">
       <TeamBadge team={team} size={22} highlight={isFener} />
