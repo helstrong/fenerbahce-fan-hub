@@ -1,7 +1,9 @@
+import { Fragment } from 'react'
 import { Route, Routes } from 'react-router-dom'
 import Layout from './components/Layout'
 import { ErrorView, LoadingView, WarningBanner } from './components/StatusView'
 import { useData } from './data/DataContext'
+import { useSport } from './data/SportContext'
 import Fixtures from './pages/Fixtures'
 import Club from './pages/Club'
 import Home from './pages/Home'
@@ -12,6 +14,7 @@ import Standings from './pages/Standings'
 
 export default function App() {
   const { state, refresh } = useData()
+  const { sport } = useSport()
   const data = state.data
 
   return (
@@ -19,7 +22,10 @@ export default function App() {
       {state.status === 'loading' && !data && <LoadingView />}
       {state.status === 'error' && <ErrorView message={state.error} onRetry={refresh} />}
       {data && (
-        <>
+        // Keyed by sport so each screen starts fresh after a switch — a squad
+        // filter of "Goalkeeper" or an expanded table row means nothing in the
+        // other sport.
+        <Fragment key={sport}>
           <WarningBanner warnings={data.warnings} />
           <Routes>
             <Route path="/" element={<Home data={data} />} />
@@ -30,7 +36,7 @@ export default function App() {
             <Route path="/club" element={<Club data={data} />} />
             <Route path="/news" element={<News data={data} />} />
           </Routes>
-        </>
+        </Fragment>
       )}
     </Layout>
   )

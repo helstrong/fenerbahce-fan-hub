@@ -34,9 +34,6 @@ export const USE_LIVE = env.VITE_USE_SAMPLE?.trim() !== 'true'
 // true when running on the free key so the UI can note the limits.
 export const IS_FREE_KEY = env.VITE_SPORTSDB_FREE_TIER?.trim() === 'true'
 
-// Highlight id must match the team id used by whichever source is active.
-export const FENER_ID = USE_LIVE ? String(TEAM_ID) : 'fb'
-
 // How long to cache a successful live fetch in the browser. An hour meant a
 // finished match could take that long to show up on top of whatever lag the
 // provider already had; 15 minutes keeps it current without adding real load,

@@ -4,7 +4,8 @@ import { SectionTitle } from '../components/Card'
 import MatchCard from '../components/MatchCard'
 import Stripes from '../components/Stripes'
 import TeamBadge from '../components/TeamBadge'
-import { LEAGUE_ID, fetchHeadToHead } from '../data/api'
+import { fetchHeadToHead } from '../data/api'
+import { useSport } from '../data/SportContext'
 import type { Fixture, Team } from '../data/types'
 import { useI18n } from '../i18n/I18nContext'
 import { perspective } from '../lib/result'
@@ -23,9 +24,11 @@ const seasonLabel = (s: string) => {
 
 export default function Opponent() {
   const { t } = useI18n()
+  const { config } = useSport()
+  const basketball = config.sport === 'basketball'
   const { teamId = '' } = useParams()
   const [params] = useSearchParams()
-  const competitionId = Number(params.get('comp')) || LEAGUE_ID
+  const competitionId = Number(params.get('comp')) || config.leagueId
 
   // The table row that linked here already had the team, so it's passed through
   // navigation state rather than costing a lookup request. Falls back to the
@@ -38,7 +41,7 @@ export default function Opponent() {
     let cancelled = false
     setState({ status: 'loading', fixtures: [], seasons: [] })
 
-    fetchHeadToHead(competitionId, teamId)
+    fetchHeadToHead(config, competitionId, teamId)
       .then(({ fixtures, seasons }) => {
         if (!cancelled) setState({ status: 'ready', fixtures, seasons })
       })
@@ -49,7 +52,7 @@ export default function Opponent() {
     return () => {
       cancelled = true
     }
-  }, [competitionId, teamId])
+  }, [config, competitionId, teamId])
 
   const { fixtures, seasons } = state
   const opponent =
@@ -98,15 +101,16 @@ export default function Opponent() {
         <p className="text-sm text-white/40">{t('h2h.none')}</p>
       ) : (
         <div className="space-y-5">
-          <div className="grid grid-cols-4 gap-2">
+          {/* No draws in basketball, so its tally is three tiles, not four. */}
+          <div className={`grid gap-2 ${basketball ? 'grid-cols-3' : 'grid-cols-4'}`}>
             <Tally value={tally.fener} label={t('h2h.fenerWins')} accent />
-            <Tally value={tally.draws} label={t('h2h.draws')} />
+            {!basketball && <Tally value={tally.draws} label={t('h2h.draws')} />}
             <Tally value={tally.opponent} label={t('h2h.opponentWins')} />
             <Tally value={fixtures.length} label={t('h2h.meetings')} />
           </div>
 
           <p className="text-[11px] text-white/40">
-            {t('h2h.goals')}: Fenerbahçe{' '}
+            {t(basketball ? 'h2h.points' : 'h2h.goals')}: Fenerbahçe{' '}
             <span className="font-display text-sm font-bold text-white/70">
               {tally.goalsFor}–{tally.goalsAgainst}
             </span>{' '}

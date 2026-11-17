@@ -22,6 +22,9 @@ const en = {
   'a11y.kit': '{season} {type} kit',
   'chrome.season': 'Season',
   'chrome.competition': 'Competition',
+  'chrome.sport': 'Choose sport',
+  'sport.football': 'Football',
+  'sport.basketball': 'Basketball',
 
   'footer.fanProject':
     'An unofficial fan project, made by supporters. Not affiliated with, endorsed by, or an official channel of Fenerbahçe Spor Kulübü.',
@@ -37,6 +40,8 @@ const en = {
   'round.round': 'Round {n}',
   'round.qualifying': 'Qualifying',
   'round.playoff': 'Knockout Play-off',
+  'round.playin': 'Play-in',
+  'round.playoffs': 'Playoffs',
   'round.r16': 'Round of 16',
   'round.quarter': 'Quarter-final',
   'round.semi': 'Semi-final',
@@ -54,6 +59,7 @@ const en = {
 
   'home.nextMatch': 'Next match',
   'home.kickingOff': 'Kicking off',
+  'home.tippingOff': 'Tipping off',
   'home.noUpcoming':
     'No upcoming fixtures right now — the schedule for the next round hasn’t been published yet.',
   'home.sideHome': 'Home',
@@ -68,6 +74,8 @@ const en = {
   'home.position': 'Position',
   'home.points': 'Points',
   'home.goalDiff': 'Goal diff',
+  'home.record': 'Win–loss',
+  'home.pointDiff': 'Point diff',
   'home.last5': 'Last 5',
   'home.fullTable': 'Full table →',
   'home.latestNews': 'Latest news',
@@ -87,6 +95,8 @@ const en = {
   'fixtures.noneResults': 'No results this season.',
   'fixtures.note':
     'Includes Süper Lig, Turkish Cup, European ties and friendlies. Friendlies for past seasons may be incomplete.',
+  'fixtures.noteBasketball':
+    'Includes the Basketbol Süper Ligi, EuroLeague and Turkish Cup, playoffs included.',
 
   'standings.title': 'Tables',
   'standings.error': 'Couldn’t load tables for this season.',
@@ -95,6 +105,8 @@ const en = {
   'standings.noData': 'No data available for this competition.',
   'standings.knockoutStage': 'Knockout stage',
   'standings.top4': 'Top 4 qualify for continental football.',
+  'standings.bslPlayoffs': 'Top 8 reach the playoffs.',
+  'standings.elPlayoffs': 'Top 6 reach the playoffs; 7th–10th go to the play-in.',
   'standings.freeTier': 'The free data tier returns only the top of the table.',
   'standings.expandHint': 'Tap a club for its season record.',
 
@@ -108,6 +120,10 @@ const en = {
   'table.goalsAgainst': 'GA',
   'table.goalDiff': 'GD',
   'table.points': 'Pts',
+  'table.pointsFor': 'PF',
+  'table.pointsAgainst': 'PA',
+  'table.pointDiff': '+/-',
+  'table.record': 'W–L',
   'table.form': 'Form',
 
   'team.seasonRecord': 'Season record',
@@ -126,6 +142,7 @@ const en = {
   'h2h.opponentWins': 'Opponent wins',
   'h2h.meetings': 'Meetings',
   'h2h.goals': 'Goals',
+  'h2h.points': 'Points',
   'h2h.coverage':
     'Covering {from} to {to} — the seasons this data source provides. Earlier meetings aren’t available.',
 
@@ -144,6 +161,11 @@ const en = {
   'posShort.Defender': 'DEF',
   'posShort.Midfielder': 'MID',
   'posShort.Forward': 'FWD',
+  'pos.Guard': 'Guard',
+  'pos.Center': 'Center',
+  'posShortBasketball.Guard': 'G',
+  'posShortBasketball.Forward': 'F',
+  'posShortBasketball.Center': 'C',
 
   'player.years': '{n} years',
   'player.foot': 'Foot',
@@ -208,6 +230,9 @@ const tr: Record<TranslationKey, string> = {
   'a11y.kit': '{season} {type} forma',
   'chrome.season': 'Sezon',
   'chrome.competition': 'Turnuva',
+  'chrome.sport': 'Spor dalını seç',
+  'sport.football': 'Futbol',
+  'sport.basketball': 'Basketbol',
 
   'footer.fanProject':
     'Taraftarlar tarafından yapılmış resmi olmayan bir taraftar projesidir. Fenerbahçe Spor Kulübü ile bağlantılı değildir ve kulübün resmi bir kanalı değildir.',
@@ -223,6 +248,8 @@ const tr: Record<TranslationKey, string> = {
   'round.round': '{n}. Tur',
   'round.qualifying': 'Eleme Turu',
   'round.playoff': 'Play-off Turu',
+  'round.playin': 'Play-in',
+  'round.playoffs': 'Play-off',
   'round.r16': 'Son 16 Turu',
   'round.quarter': 'Çeyrek Final',
   'round.semi': 'Yarı Final',
@@ -240,6 +267,7 @@ const tr: Record<TranslationKey, string> = {
 
   'home.nextMatch': 'Sıradaki maç',
   'home.kickingOff': 'Başlıyor',
+  'home.tippingOff': 'Başlıyor',
   'home.noUpcoming': 'Şu anda yaklaşan maç yok — sonraki haftanın programı henüz açıklanmadı.',
   'home.sideHome': 'Ev sahibi',
   'home.sideAway': 'Deplasman',
@@ -253,6 +281,8 @@ const tr: Record<TranslationKey, string> = {
   'home.position': 'Sıra',
   'home.points': 'Puan',
   'home.goalDiff': 'Averaj',
+  'home.record': 'G–M',
+  'home.pointDiff': 'Averaj',
   'home.last5': 'Son 5',
   'home.fullTable': 'Tüm puan durumu →',
   'home.latestNews': 'Son haberler',
@@ -272,6 +302,8 @@ const tr: Record<TranslationKey, string> = {
   'fixtures.noneResults': 'Bu sezon sonuç yok.',
   'fixtures.note':
     'Süper Lig, Türkiye Kupası, Avrupa maçları ve hazırlık maçlarını içerir. Geçmiş sezonlardaki hazırlık maçları eksik olabilir.',
+  'fixtures.noteBasketball':
+    'Basketbol Süper Ligi, EuroLeague ve Türkiye Kupası maçlarını play-off’larla birlikte içerir.',
 
   'standings.title': 'Puan Durumu',
   'standings.error': 'Bu sezonun puan durumu yüklenemedi.',
@@ -280,6 +312,8 @@ const tr: Record<TranslationKey, string> = {
   'standings.noData': 'Bu turnuva için veri mevcut değil.',
   'standings.knockoutStage': 'Eleme turu',
   'standings.top4': 'İlk 4 Avrupa kupalarına katılma hakkı kazanır.',
+  'standings.bslPlayoffs': 'İlk 8 play-off’a kalır.',
+  'standings.elPlayoffs': 'İlk 6 doğrudan play-off’a, 7.–10. sıradakiler play-in’e kalır.',
   'standings.freeTier': 'Ücretsiz veri paketi puan durumunun yalnızca ilk sıralarını verir.',
   'standings.expandHint': 'Sezon karnesi için bir takıma dokunun.',
 
@@ -293,6 +327,10 @@ const tr: Record<TranslationKey, string> = {
   'table.goalsAgainst': 'Y',
   'table.goalDiff': 'AV',
   'table.points': 'P',
+  'table.pointsFor': 'A',
+  'table.pointsAgainst': 'Y',
+  'table.pointDiff': 'AV',
+  'table.record': 'G–M',
   'table.form': 'Form',
 
   'team.seasonRecord': 'Sezon karnesi',
@@ -311,6 +349,7 @@ const tr: Record<TranslationKey, string> = {
   'h2h.opponentWins': 'Rakip galibiyeti',
   'h2h.meetings': 'Karşılaşma',
   'h2h.goals': 'Goller',
+  'h2h.points': 'Sayılar',
   'h2h.coverage':
     '{from} - {to} sezonlarını kapsar — bu veri kaynağının sunduğu sezonlar. Daha eski karşılaşmalar mevcut değil.',
 
@@ -329,6 +368,11 @@ const tr: Record<TranslationKey, string> = {
   'posShort.Defender': 'DEF',
   'posShort.Midfielder': 'OS',
   'posShort.Forward': 'FOR',
+  'pos.Guard': 'Guard',
+  'pos.Center': 'Pivot',
+  'posShortBasketball.Guard': 'G',
+  'posShortBasketball.Forward': 'F',
+  'posShortBasketball.Center': 'P',
 
   'player.years': '{n} yaş',
   'player.foot': 'Ayak',

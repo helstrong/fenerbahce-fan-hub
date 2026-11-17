@@ -5,6 +5,7 @@ import App from './App'
 import ErrorBoundary from './components/ErrorBoundary'
 import { DataProvider } from './data/DataContext'
 import { SeasonProvider } from './data/SeasonContext'
+import { SportProvider } from './data/SportContext'
 import { I18nProvider } from './i18n/I18nContext'
 import './index.css'
 
@@ -13,11 +14,13 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
     <I18nProvider>
       <ErrorBoundary>
         <BrowserRouter>
-          <DataProvider>
-            <SeasonProvider>
-              <App />
-            </SeasonProvider>
-          </DataProvider>
+          <SportProvider>
+            <DataProvider>
+              <SeasonProvider>
+                <App />
+              </SeasonProvider>
+            </DataProvider>
+          </SportProvider>
         </BrowserRouter>
       </ErrorBoundary>
     </I18nProvider>

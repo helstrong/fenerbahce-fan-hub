@@ -3,6 +3,8 @@ import type { ReactNode } from 'react'
 import { loadSeason } from './api'
 import type { CompetitionStandings, SeasonData } from './api'
 import { SEASON } from './config'
+import { useSport } from './SportContext'
+import type { Sport } from './sports'
 
 type Status = 'loading' | 'ready' | 'error'
 
@@ -26,9 +28,13 @@ function buildSeasons(from: string, count = 12): string[] {
   return Array.from({ length: count }, (_, i) => `${start + 1 - i}-${start + 2 - i}`)
 }
 
+// The selected season is shared by both sports — they use the same "YYYY-YYYY"
+// seasons — so switching sport keeps you on the season you were browsing.
 export function SeasonProvider({ children }: { children: ReactNode }) {
+  const { sport, config } = useSport()
   const [season, setSeason] = useState(SEASON)
-  const [state, setState] = useState<{ status: Status; data: SeasonData | null; error?: string }>({
+  const [state, setState] = useState<{ sport: Sport; status: Status; data: SeasonData | null; error?: string }>({
+    sport,
     status: 'loading',
     data: null,
   })
@@ -37,31 +43,40 @@ export function SeasonProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let cancelled = false
+    const key = `${sport}:${season}`
 
-    const cached = cache.current.get(season)
+    const cached = cache.current.get(key)
     if (cached) {
-      setState({ status: 'ready', data: cached })
+      setState({ sport, status: 'ready', data: cached })
       return
     }
 
-    setState((s) => ({ ...s, status: 'loading' }))
-    loadSeason(season)
+    // Changing season keeps the previous season on screen while the next one
+    // loads; changing sport doesn't, since the other sport's table would be
+    // wrong rather than merely stale.
+    setState((s) => (s.sport === sport ? { ...s, status: 'loading' } : { sport, status: 'loading', data: null }))
+    loadSeason(config, season)
       .then((data) => {
         if (cancelled) return
-        cache.current.set(season, data)
-        setState({ status: 'ready', data })
+        cache.current.set(key, data)
+        setState({ sport, status: 'ready', data })
       })
       .catch((e) => {
-        if (!cancelled) setState({ status: 'error', data: null, error: String(e?.message ?? e) })
+        if (!cancelled) setState({ sport, status: 'error', data: null, error: String(e?.message ?? e) })
       })
 
     return () => {
       cancelled = true
     }
-  }, [season])
+  }, [sport, config, season])
+
+  // Covers the render between a sport switch and the effect above clearing
+  // the old sport's data.
+  const { sport: _forSport, ...current } =
+    state.sport === sport ? state : { sport, status: 'loading' as Status, data: null }
 
   return (
-    <SeasonContext.Provider value={{ season, setSeason, seasons, ...state }}>
+    <SeasonContext.Provider value={{ season, setSeason, seasons, ...current }}>
       {children}
     </SeasonContext.Provider>
   )

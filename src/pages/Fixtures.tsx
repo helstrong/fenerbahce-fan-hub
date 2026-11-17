@@ -3,10 +3,12 @@ import MatchCard from '../components/MatchCard'
 import PageHeader from '../components/PageHeader'
 import SeasonSelect from '../components/SeasonSelect'
 import { useSeason } from '../data/SeasonContext'
+import { useSport } from '../data/SportContext'
 import { useI18n } from '../i18n/I18nContext'
 
 export default function Fixtures() {
   const { t } = useI18n()
+  const { sport } = useSport()
   const { status, data } = useSeason()
   const [tab, setTab] = useState<'upcoming' | 'results'>('upcoming')
 
@@ -60,7 +62,7 @@ export default function Fixtures() {
         </p>
       )}
 
-      <p className="mt-4 text-[11px] leading-relaxed text-white/35">{t('fixtures.note')}</p>
+      <p className="mt-4 text-[11px] leading-relaxed text-white/35">{t(sport === 'basketball' ? 'fixtures.noteBasketball' : 'fixtures.note')}</p>
     </div>
   )
 }

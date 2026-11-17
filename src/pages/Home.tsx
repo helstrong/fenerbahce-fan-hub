@@ -7,9 +7,10 @@ import { ResultStrip, TieRow } from '../components/ResultStrip'
 import SeasonSelect from '../components/SeasonSelect'
 import Stripes from '../components/Stripes'
 import TeamBadge from '../components/TeamBadge'
-import { FENER_ID, IS_FREE_KEY, lastResult, nextMatch, standingFor } from '../data/api'
+import { IS_FREE_KEY, fenerStanding, isFener, lastResult, nextMatch } from '../data/api'
 import type { KnockoutStage } from '../data/api'
 import { useSeason, useSelectedCompetition } from '../data/SeasonContext'
+import { useSport } from '../data/SportContext'
 import type { AppData, Fixture, Standing } from '../data/types'
 import { useI18n } from '../i18n/I18nContext'
 import type { Translate } from '../i18n/I18nContext'
@@ -22,7 +23,7 @@ export default function Home({ data }: { data: AppData }) {
   const roundLabel = useRoundLabel()
   const last = lastResult(data)
   const next = nextMatch(data)
-  const fener = standingFor(data, FENER_ID)
+  const fener = fenerStanding(data)
 
   const { status: seasonStatus, data: seasonData } = useSeason()
   const competitions = seasonData?.competitions ?? []
@@ -135,6 +136,7 @@ export default function Home({ data }: { data: AppData }) {
 // content column on desktop.
 function MatchdayHero({ fixture }: { fixture?: Fixture }) {
   const { t, locale } = useI18n()
+  const { sport } = useSport()
   const roundLabel = useRoundLabel()
   const countdown = useCountdown(fixture?.date)
 
@@ -160,8 +162,10 @@ function MatchdayHero({ fixture }: { fixture?: Fixture }) {
       <Stripes />
 
       <div className="relative flex items-baseline justify-between gap-3">
-        <span className="text-xs font-bold uppercase tracking-[0.16em] text-fener-yellow">
-          {countdown?.started ? t('home.kickingOff') : t('home.nextMatch')}
+        <span className="shrink-0 text-xs font-bold uppercase tracking-[0.16em] text-fener-yellow">
+          {countdown?.started
+            ? t(sport === 'basketball' ? 'home.tippingOff' : 'home.kickingOff')
+            : t('home.nextMatch')}
         </span>
         <span className="truncate text-[11px] font-medium uppercase tracking-[0.06em] text-white/55">
           {[fixture.competition, roundLabel(fixture)].filter(Boolean).join(' · ')}
@@ -196,7 +200,7 @@ function MatchdayHero({ fixture }: { fixture?: Fixture }) {
 function HeroSide({ team, label }: { team: Fixture['home']; label: string }) {
   return (
     <div className="flex min-w-0 flex-col items-center gap-2">
-      <TeamBadge team={team} size={52} highlight={team.id === FENER_ID} />
+      <TeamBadge team={team} size={52} highlight={isFener(team.id)} />
       <span className="line-clamp-2 text-center text-[13px] font-semibold">{team.name}</span>
       <span className="text-[10px] font-medium uppercase tracking-[0.1em] text-white/45">{label}</span>
     </div>
@@ -216,8 +220,11 @@ function CountdownCell({ value, label }: { value: string; label: string }) {
 
 // Position, points and goal difference at a glance, with the record and form
 // underneath — the numbers the hero used to carry before matchday took its place.
+// Basketball has no points or draws: the tiles become the win–loss record and
+// point difference instead.
 function SeasonStanding({ standing }: { standing: Standing }) {
   const { t, locale } = useI18n()
+  const basketball = useSport().sport === 'basketball'
   const gd = standing.gf - standing.ga
   const suffix = ordinal(standing.rank, locale)
 
@@ -237,8 +244,15 @@ function SeasonStanding({ standing }: { standing: Standing }) {
             {t('home.position')}
           </div>
         </div>
-        <StatTile value={String(standing.points)} label={t('home.points')} />
-        <StatTile value={`${gd >= 0 ? '+' : ''}${gd}`} label={t('home.goalDiff')} />
+        {basketball ? (
+          <StatTile value={`${standing.won}–${standing.lost}`} label={t('home.record')} />
+        ) : (
+          <StatTile value={String(standing.points)} label={t('home.points')} />
+        )}
+        <StatTile
+          value={`${gd >= 0 ? '+' : ''}${gd}`}
+          label={t(basketball ? 'home.pointDiff' : 'home.goalDiff')}
+        />
       </div>
 
       <div className="mt-2 flex flex-wrap items-center gap-x-2.5 gap-y-2 rounded-xl bg-white/5 px-3 py-2.5">
@@ -248,8 +262,14 @@ function SeasonStanding({ standing }: { standing: Standing }) {
         <FormGuide form={standing.form} />
         <span className="ml-auto text-[11px] font-medium text-white/45">
           {standing.won}
-          {t('table.won')} {standing.drawn}
-          {t('table.drawn')} {standing.lost}
+          {t('table.won')}{' '}
+          {!basketball && (
+            <>
+              {standing.drawn}
+              {t('table.drawn')}{' '}
+            </>
+          )}
+          {standing.lost}
           {t('table.lost')}
         </span>
       </div>
@@ -274,30 +294,36 @@ function StatTile({ value, label }: { value: string; label: string }) {
 }
 
 function MiniTable({ standings }: { standings: Standing[] }) {
+  const basketball = useSport().sport === 'basketball'
   return (
     <div className="overflow-hidden rounded-2xl border border-white/[0.09] bg-white/5">
       {standings.map((s, i) => {
-        const isFener = s.team.id === FENER_ID
+        const ours = isFener(s.team.id)
         return (
           <div
             key={s.team.id}
             className={`flex items-center gap-2.5 px-3.5 py-2.5 text-sm ${
               i > 0 ? 'border-t border-white/[0.06]' : ''
-            } ${isFener ? 'bg-fener-yellow font-semibold text-fener-navy' : ''}`}
+            } ${ours ? 'bg-fener-yellow font-semibold text-fener-navy' : ''}`}
           >
             <span
               className={`w-5 shrink-0 font-display text-[15px] font-bold ${
-                isFener ? '' : 'text-white/45'
+                ours ? '' : 'text-white/45'
               }`}
             >
               {s.rank}
             </span>
-            <TeamBadge team={s.team} size={20} highlight={isFener} />
+            <TeamBadge team={s.team} size={20} highlight={ours} />
             <span className="flex-1 truncate">{s.team.name}</span>
-            <span className={`w-7 shrink-0 text-center text-xs ${isFener ? 'opacity-60' : 'text-white/40'}`}>
+            <span className={`w-7 shrink-0 text-center text-xs ${ours ? 'opacity-60' : 'text-white/40'}`}>
               {s.played}
             </span>
-            <span className="w-8 shrink-0 text-right font-display text-[17px] font-bold">{s.points}</span>
+            {/* Basketball ranks on wins, so its headline number is the record. */}
+            <span
+              className={`shrink-0 text-right font-display text-[17px] font-bold ${basketball ? 'w-12' : 'w-8'}`}
+            >
+              {basketball ? `${s.won}–${s.lost}` : s.points}
+            </span>
           </div>
         )
       })}

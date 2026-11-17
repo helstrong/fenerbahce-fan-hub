@@ -1,4 +1,6 @@
-import { CACHE_TTL_MS, FENER_ID, IS_FREE_KEY, LEAGUE_ID, SEASON, USE_LIVE } from './config'
+import { CACHE_TTL_MS, IS_FREE_KEY, SEASON, USE_LIVE } from './config'
+import { SPORT_LIST, isFener } from './sports'
+import type { Sport, SportConfig } from './sports'
 import {
   fetchClub,
   fetchCompetitionEvents,
@@ -32,7 +34,7 @@ export { roundRef, fetchHeadToHead }
 // The single entry point every screen reads from. Swap the data source by
 // toggling VITE_USE_SAMPLE in .env — the return shape (AppData) never changes.
 
-export { FENER_ID, IS_FREE_KEY, LEAGUE_ID }
+export { IS_FREE_KEY, isFener }
 
 // Season-scoped on purpose: the cached payload holds standings for whichever
 // season was current when it was written, but nothing in it records that. When
@@ -45,9 +47,22 @@ export { FENER_ID, IS_FREE_KEY, LEAGUE_ID }
 // v6: cached fixtures written before the UTC fix carry kick-off times that
 // would still render in the wrong zone, so the old entries have to be retired
 // rather than waited out.
-const CACHE_KEY = `fener-fan-hub:data:v6:${SEASON}`
+// Also keyed by sport, so football and basketball each keep their own copy and
+// flipping the sport switch back and forth doesn't refetch either one.
+const cacheKey = (sport: Sport) => `fener-fan-hub:data:v6:${sport}:${SEASON}`
 
-function sampleData(): AppData {
+// The bundled sample set is football only. Basketball in sample mode — or
+// when the live fetch fails outright — shows empty sections with a warning
+// rather than football data under the basketball switch.
+function emptyData(warnings: string[]): AppData {
+  return { standings: [], results: [], upcoming: [], players: [], kits: [], news: [], live: false, warnings }
+}
+
+const NO_BASKETBALL_SAMPLE = 'Sample data covers football only — basketball needs the live data source.'
+
+function sampleData(cfg: SportConfig): AppData {
+  if (cfg.sport !== 'football') return emptyData([NO_BASKETBALL_SAMPLE])
+
   const byDateAsc = (a: Fixture, b: Fixture) => +new Date(a.date) - +new Date(b.date)
   const finished = [...sampleFixtures].filter((f) => f.status === 'finished').sort(byDateAsc)
   const upcoming = [...sampleFixtures].filter((f) => f.status !== 'finished').sort(byDateAsc)
@@ -82,9 +97,9 @@ function isValidCache(v: unknown): v is AppData {
   )
 }
 
-function readCache(): AppData | null {
+function readCache(sport: Sport): AppData | null {
   try {
-    const raw = localStorage.getItem(CACHE_KEY)
+    const raw = localStorage.getItem(cacheKey(sport))
     if (!raw) return null
     const { t, v } = JSON.parse(raw)
     if (Date.now() - t > CACHE_TTL_MS) return null
@@ -94,34 +109,36 @@ function readCache(): AppData | null {
   }
 }
 
-function writeCache(data: AppData) {
+function writeCache(sport: Sport, data: AppData) {
   try {
     // The key now varies by season, so previous seasons' entries (and older
-    // schema versions) would linger indefinitely. Drop them as we write.
+    // schema versions) would linger indefinitely. Drop them as we write —
+    // keeping every sport's current entry, not just the one being written.
+    const current = new Set(SPORT_LIST.map(cacheKey))
     for (const key of Object.keys(localStorage))
-      if (key.startsWith('fener-fan-hub:data:') && key !== CACHE_KEY) localStorage.removeItem(key)
+      if (key.startsWith('fener-fan-hub:data:') && !current.has(key)) localStorage.removeItem(key)
 
-    localStorage.setItem(CACHE_KEY, JSON.stringify({ t: Date.now(), v: data }))
+    localStorage.setItem(cacheKey(sport), JSON.stringify({ t: Date.now(), v: data }))
   } catch {
     /* ignore quota / private-mode errors */
   }
 }
 
-export async function loadAll(force = false): Promise<AppData> {
-  if (!USE_LIVE) return sampleData()
+export async function loadAll(cfg: SportConfig, force = false): Promise<AppData> {
+  if (!USE_LIVE) return sampleData(cfg)
 
   if (!force) {
-    const cached = readCache()
+    const cached = readCache(cfg.sport)
     if (cached) return cached
   }
 
   const [club, standings, fixtures, players, kits, news] = await Promise.allSettled([
-    fetchClub(),
-    fetchStandings(),
-    fetchFixtures(),
-    fetchPlayers(),
-    fetchKits(),
-    fetchNews(),
+    fetchClub(cfg),
+    fetchStandings(cfg),
+    fetchFixtures(cfg),
+    fetchPlayers(cfg),
+    fetchKits(cfg),
+    fetchNews(cfg.sport),
   ])
 
   const warnings: string[] = []
@@ -148,10 +165,12 @@ export async function loadAll(force = false): Promise<AppData> {
 
   // If nothing at all came back (provider down / rate-limited), fall back to the
   // bundled sample data so the app is never blank — but keep the warnings.
-  if (!data.club && !data.standings.length && !data.results.length && !data.upcoming.length && !data.players.length)
-    return { ...sampleData(), warnings: [...warnings, 'Live data unavailable — showing sample data.'] }
+  if (!data.club && !data.standings.length && !data.results.length && !data.upcoming.length && !data.players.length) {
+    if (cfg.sport !== 'football') return emptyData([...warnings, 'Live data unavailable.'])
+    return { ...sampleData(cfg), warnings: [...warnings, 'Live data unavailable — showing sample data.'] }
+  }
 
-  writeCache(data)
+  writeCache(cfg.sport, data)
   return data
 }
 
@@ -165,15 +184,17 @@ export interface SeasonData {
   warnings: string[]
 }
 
-export async function loadSeason(season: string): Promise<SeasonData> {
+export async function loadSeason(cfg: SportConfig, season: string): Promise<SeasonData> {
   if (!USE_LIVE) {
-    const s = sampleData()
+    if (cfg.sport !== 'football') return { competitions: [], results: [], upcoming: [], warnings: [NO_BASKETBALL_SAMPLE] }
+    const s = sampleData(cfg)
     return {
       competitions: [
         {
-          competitionId: LEAGUE_ID,
+          competitionId: cfg.leagueId,
           competitionName: 'Süper Lig',
           source: 'official',
+          topZone: cfg.competitions[0].topZone,
           standings: s.standings,
           knockout: [],
           // Sample mode only carries Fenerbahçe's own fixtures, which is enough
@@ -189,11 +210,11 @@ export async function loadSeason(season: string): Promise<SeasonData> {
 
   // Fetched once and shared: both the fixtures merge and the competition
   // tables (which compute standings from full results) read from this.
-  const events = await fetchCompetitionEvents(season).catch(() => new Map<number, Fixture[]>())
+  const events = await fetchCompetitionEvents(cfg, season).catch(() => new Map<number, Fixture[]>())
 
   const [competitions, fixtures] = await Promise.allSettled([
-    fetchCompetitionTables(season, events),
-    fetchSeasonFixtures(season, events),
+    fetchCompetitionTables(cfg, season, events),
+    fetchSeasonFixtures(cfg, season, events),
   ])
 
   const warnings: string[] = []
@@ -215,13 +236,13 @@ export async function loadSeason(season: string): Promise<SeasonData> {
 // collapsing and reopening the same player doesn't refetch.
 const careerCache = new Map<string, Promise<PlayerCareer>>()
 
-export function loadPlayerCareer(playerId: string): Promise<PlayerCareer> {
+export function loadPlayerCareer(cfg: SportConfig, playerId: string): Promise<PlayerCareer> {
   if (!USE_LIVE) return Promise.resolve({ spells: [], honours: [] })
 
   const hit = careerCache.get(playerId)
   if (hit) return hit
 
-  const pending = fetchPlayerCareer(playerId).catch((e) => {
+  const pending = fetchPlayerCareer(cfg, playerId).catch((e) => {
     // Don't cache a failure — a later expand should be able to retry.
     careerCache.delete(playerId)
     throw e
@@ -237,8 +258,8 @@ export function loadPlayerCareer(playerId: string): Promise<PlayerCareer> {
 // don't both appear. Memoised per event for the session.
 const broadcastCache = new Map<string, Promise<Broadcast[]>>()
 
-export function loadBroadcasts(eventId: string, competition: string): Promise<Broadcast[]> {
-  const curated = rightsFor(competition)
+export function loadBroadcasts(sport: Sport, eventId: string, competition: string): Promise<Broadcast[]> {
+  const curated = rightsFor(sport, competition)
   if (!USE_LIVE) return Promise.resolve(curated)
 
   const hit = broadcastCache.get(eventId)
@@ -261,5 +282,4 @@ export function loadBroadcasts(eventId: string, competition: string): Promise<Br
 // ---- pure selectors -----------------------------------------------------
 export const lastResult = (d: AppData): Fixture | undefined => d.results[0]
 export const nextMatch = (d: AppData): Fixture | undefined => d.upcoming[0]
-export const standingFor = (d: AppData, teamId: string) =>
-  d.standings.find((s) => s.team.id === teamId)
+export const fenerStanding = (d: AppData) => d.standings.find((s) => isFener(s.team.id))

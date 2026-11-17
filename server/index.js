@@ -11,7 +11,7 @@
 import express from 'express'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { fetchNews } from './news.js'
+import { fetchNews, newsSport } from './news.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const dist = path.join(__dirname, '..', 'dist')
@@ -74,9 +74,9 @@ app.get('/api/sportsdb/:endpoint', async (req, res) => {
   }
 })
 
-app.get('/api/news', async (_req, res) => {
+app.get('/api/news', async (req, res) => {
   try {
-    const items = await fetchNews()
+    const items = await fetchNews(newsSport(req.query.sport))
     res.set('Cache-Control', 'public, max-age=600')
     res.json({ items })
   } catch {

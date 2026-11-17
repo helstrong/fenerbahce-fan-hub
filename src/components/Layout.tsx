@@ -4,6 +4,7 @@ import Crest from './Crest'
 import Footer from './Footer'
 import Icon from './Icon'
 import LanguageToggle from './LanguageToggle'
+import SportToggle from './SportToggle'
 import { useI18n } from '../i18n/I18nContext'
 import type { TranslationKey } from '../i18n/strings'
 
@@ -32,37 +33,23 @@ export default function Layout({ children, live = false, onRefresh, refreshing =
       {/* Installed on iOS the status bar is translucent over the page, so the
           header carries its inset as extra top padding. */}
       <header className="sticky top-0 z-30 border-b border-white/10 bg-fener-navy-dark/90 pt-[env(safe-area-inset-top)] backdrop-blur-md">
-        <div className="mx-auto flex max-w-5xl items-center gap-2.5 px-4 py-3">
-          {/* The crest and wordmark are the usual way back to the dashboard. */}
+        <div className="mx-auto flex max-w-5xl items-center gap-2 px-4 py-3 sm:gap-2.5">
+          {/* The crest and wordmark are the usual way back to the dashboard.
+              On a phone the sport switch needs the room, so it's crest only. */}
           <NavLink to="/" end className="flex shrink-0 items-center gap-2.5" aria-label={t('nav.home')}>
             {badge ? (
               <img src={badge} alt={t('a11y.crest', { name: 'Fenerbahçe' })} className="h-7 w-7 shrink-0 object-contain" />
             ) : (
               <Crest className="h-7 w-7 shrink-0" />
             )}
-            <span className="font-display text-[15px] font-semibold uppercase tracking-[0.14em]">
+            <span className="hidden font-display text-[15px] font-semibold uppercase tracking-[0.14em] md:inline">
               Fan Hub
             </span>
           </NavLink>
 
-          <div className="ml-auto flex items-center gap-2">
-            <nav className="hidden gap-1 md:flex">
-              {nav.map((n) => (
-                <NavLink
-                  key={n.to}
-                  to={n.to}
-                  end={n.end}
-                  className={({ isActive }) =>
-                    `rounded-lg px-3 py-1.5 text-sm font-medium transition ${
-                      isActive ? 'bg-fener-yellow text-fener-navy' : 'text-white/70 hover:bg-white/10'
-                    }`
-                  }
-                >
-                  {t(n.label)}
-                </NavLink>
-              ))}
-            </nav>
+          <SportToggle />
 
+          <div className="ml-auto flex shrink-0 items-center gap-2">
             <LanguageToggle />
 
             {/* Whether the numbers on screen came from the live provider or the
@@ -100,6 +87,25 @@ export default function Layout({ children, live = false, onRefresh, refreshing =
             )}
           </div>
         </div>
+
+        {/* Desktop nav gets its own row: alongside the sport switch, the
+            language switch and the refresh button it no longer fits in one. */}
+        <nav className="mx-auto hidden max-w-5xl gap-1 px-4 pb-2.5 md:flex">
+          {nav.map((n) => (
+            <NavLink
+              key={n.to}
+              to={n.to}
+              end={n.end}
+              className={({ isActive }) =>
+                `rounded-lg px-3 py-1.5 text-sm font-medium transition ${
+                  isActive ? 'bg-fener-yellow text-fener-navy' : 'text-white/70 hover:bg-white/10'
+                }`
+              }
+            >
+              {t(n.label)}
+            </NavLink>
+          ))}
+        </nav>
       </header>
 
       <main className="mx-auto max-w-5xl px-4 py-6">{children}</main>

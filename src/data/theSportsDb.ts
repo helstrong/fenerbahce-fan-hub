@@ -1,6 +1,8 @@
-import { LEAGUE_ID, SEASON, SPORTSDB_BASE, TEAM_ID } from './config'
+import { SEASON, SPORTSDB_BASE } from './config'
 import { countryTag } from './broadcasts'
+import type { Competition, SportConfig } from './sports'
 import type {
+  BasketballPosition,
   Broadcast,
   ClubProfile,
   Fixture,
@@ -18,6 +20,9 @@ import type {
 // Thin client for TheSportsDB (https://www.thesportsdb.com/), JSON API v1.
 // Each exported function maps a raw response into our own domain types so the
 // rest of the app never sees the provider's shape.
+//
+// Every team- or league-scoped call takes a SportConfig (see ./sports), so the
+// same code serves Fenerbahçe football and Fenerbahçe Beko basketball.
 //
 // Requests go to the same-origin proxy (SPORTSDB_BASE); the server injects the
 // API key and forwards to TheSportsDB, so no key is ever present in the browser.
@@ -54,8 +59,8 @@ const clean = (v: unknown): string | undefined => {
 }
 
 // ---- Standings (top 5 on the free tier) ---------------------------------
-async function fetchOfficialTable(season: string): Promise<Standing[]> {
-  const { table } = await request('lookuptable.php', { l: LEAGUE_ID, s: season })
+async function fetchOfficialTable(cfg: SportConfig, season: string): Promise<Standing[]> {
+  const { table } = await request('lookuptable.php', { l: cfg.leagueId, s: season })
   const rows: any[] = table ?? []
   return rows.map((r) => ({
     rank: num(r.intRank),
@@ -80,21 +85,37 @@ export interface LeagueTable {
 const LEAGUE_COMPUTED_NOTE =
   'Computed from results — the published table hadn’t caught up with the latest matches yet. Tiebreakers are simplified (points, then goal difference, then goals scored) and may differ from the official table.'
 
+const BASKETBALL_COMPUTED_NOTE =
+  'Computed from regular-season results — the data source publishes no basketball tables. Ranked on wins, then point difference, then points scored; the official tiebreakers (head-to-head first) may order tied teams differently.'
+
 // TheSportsDB recomputes lookuptable.php on its own schedule and can sit days
 // behind the results it is already serving: after a matchday the table still
 // shows the pre-match standings. Rather than show a table the app's own results
 // contradict, compare the two and recompute from the fixtures when the
 // published one is behind.
+//
+// Basketball has no published table at all, so it is always computed — and
+// only from the regular season, since playoff series aren't table games.
 export async function fetchLeagueTable(
+  cfg: SportConfig,
   season: string = SEASON,
   leagueEvents?: Fixture[],
 ): Promise<LeagueTable> {
+  if (!cfg.officialTable) {
+    const events = leagueEvents ?? (await fetchSeasonEvents(cfg.leagueId, season))
+    return {
+      standings: computeStandingsFromFixtures(events.filter(isRegularSeason), cfg.scoring),
+      source: 'computed',
+      note: BASKETBALL_COMPUTED_NOTE,
+    }
+  }
+
   const [official, events] = await Promise.all([
-    fetchOfficialTable(season).catch(() => [] as Standing[]),
-    leagueEvents ? Promise.resolve(leagueEvents) : fetchSeasonEvents(LEAGUE_ID, season),
+    fetchOfficialTable(cfg, season).catch(() => [] as Standing[]),
+    leagueEvents ? Promise.resolve(leagueEvents) : fetchSeasonEvents(cfg.leagueId, season),
   ])
 
-  const computed = computeStandingsFromFixtures(events)
+  const computed = computeStandingsFromFixtures(events, cfg.scoring)
   if (!computed.length) return { standings: official, source: 'official' }
   if (!official.length) return { standings: computed, source: 'computed', note: LEAGUE_COMPUTED_NOTE }
 
@@ -108,8 +129,8 @@ export async function fetchLeagueTable(
     : { standings: official, source: 'official' }
 }
 
-export async function fetchStandings(season: string = SEASON): Promise<Standing[]> {
-  return (await fetchLeagueTable(season)).standings
+export async function fetchStandings(cfg: SportConfig, season: string = SEASON): Promise<Standing[]> {
+  return (await fetchLeagueTable(cfg, season)).standings
 }
 
 // ---- Fixtures (rolling ~5 last + ~5 next on the free tier) ---------------
@@ -152,49 +173,52 @@ function toFixture(x: any): Fixture {
   }
 }
 
-export async function fetchFixtures(): Promise<{ results: Fixture[]; upcoming: Fixture[] }> {
+// Cancelled, postponed and abandoned games are dropped rather than shown:
+// without a score they'd otherwise sit in "upcoming" forever with a date that
+// has already passed (the EuroLeague feed has cancelled games in it).
+const isCalledOff = (x: any): boolean => /^(canc|pst|postp|abd|aban)/i.test(String(x.strStatus ?? '').trim())
+
+const toFixtures = (raw: any[]): Fixture[] => raw.filter((x) => !isCalledOff(x)).map(toFixture)
+
+export async function fetchFixtures(cfg: SportConfig): Promise<{ results: Fixture[]; upcoming: Fixture[] }> {
   const [last, next] = await Promise.all([
-    request('eventslast.php', { id: TEAM_ID }), // returns { results: [...] }
-    request('eventsnext.php', { id: TEAM_ID }), // returns { events: [...] }
+    request('eventslast.php', { id: cfg.teamId }), // returns { results: [...] }
+    request('eventsnext.php', { id: cfg.teamId }), // returns { events: [...] }
   ])
 
-  const results = ((last.results ?? last.events ?? []) as any[])
-    .map(toFixture)
-    .filter((f) => f.status === 'finished')
-    .sort((a, b) => +new Date(b.date) - +new Date(a.date))
+  const lastList = toFixtures(last.results ?? last.events ?? [])
+  const nextList = toFixtures(next.events ?? [])
 
-  const upcoming = ((next.events ?? []) as any[])
-    .map(toFixture)
+  // A game played today shows up in eventsnext marked finished (with its
+  // score) before eventslast catches up with it. Taking finished games from
+  // both lists means "Last result" updates when the game ends rather than
+  // whenever the provider rebuilds eventslast.
+  const finished = new Map<string, Fixture>()
+  for (const f of [...lastList, ...nextList]) if (f.status === 'finished') finished.set(f.id, f)
+
+  const results = [...finished.values()].sort((a, b) => +new Date(b.date) - +new Date(a.date))
+
+  const upcoming = nextList
     .filter((f) => f.status !== 'finished')
     .sort((a, b) => +new Date(a.date) - +new Date(b.date))
 
   return { results, upcoming }
 }
 
-// Competitions Fenerbahçe may play in a given season. eventsseason returns the
-// whole competition, so we query each and keep every match (not just our
-// team's) — the full list is also what lets us compute a standings table for
-// competitions TheSportsDB doesn't supply one for (see fetchCompetitionTables).
-const COMPETITIONS: { id: number; name: string }[] = [
-  { id: LEAGUE_ID, name: 'Süper Lig' },
-  { id: 4960, name: 'Turkish Cup' },
-  { id: 4480, name: 'UEFA Champions League' },
-  { id: 4481, name: 'UEFA Europa League' },
-  { id: 5071, name: 'UEFA Conference League' },
-]
-
 // Fetch every match of every candidate competition for a season, once. Shared
 // by fetchSeasonFixtures (filters to our team) and fetchCompetitionTables
 // (uses the full list to compute a table) so neither refetches the other's data.
+// eventsseason returns the whole competition, not just our team's matches —
+// the full list is what lets us compute a table where the provider has none.
 async function fetchSeasonEvents(competitionId: number, season: string): Promise<Fixture[]> {
   return request('eventsseason.php', { id: competitionId, s: season })
-    .then((r) => ((r.events ?? []) as any[]).map(toFixture))
+    .then((r) => toFixtures(r.events ?? []))
     .catch(() => [] as Fixture[])
 }
 
-export async function fetchCompetitionEvents(season: string): Promise<Map<number, Fixture[]>> {
-  const lists = await Promise.all(COMPETITIONS.map(({ id }) => fetchSeasonEvents(id, season)))
-  return new Map(COMPETITIONS.map(({ id }, i) => [id, lists[i]]))
+export async function fetchCompetitionEvents(cfg: SportConfig, season: string): Promise<Map<number, Fixture[]>> {
+  const lists = await Promise.all(cfg.competitions.map(({ id }) => fetchSeasonEvents(id, season)))
+  return new Map(cfg.competitions.map(({ id }, i) => [id, lists[i]]))
 }
 
 // A season "2025-2026" runs ~Jul 2025 → Jun 2026. Used to attribute rolling
@@ -208,16 +232,17 @@ function seasonRange(season: string): [number, number] {
 // Friendlies aren't reliably in eventsseason, so we fold in the team's rolling
 // events that fall inside the season window and dedupe by id.
 export async function fetchSeasonFixtures(
+  cfg: SportConfig,
   season: string = SEASON,
   eventsByCompetition?: Map<number, Fixture[]>,
 ): Promise<{ results: Fixture[]; upcoming: Fixture[] }> {
-  const team = String(TEAM_ID)
-  const events = eventsByCompetition ?? (await fetchCompetitionEvents(season))
+  const team = String(cfg.teamId)
+  const events = eventsByCompetition ?? (await fetchCompetitionEvents(cfg, season))
 
   const rollingRaw = await Promise.all(
     [
-      request('eventslast.php', { id: TEAM_ID }).then((r) => (r.results ?? r.events ?? []) as any[]),
-      request('eventsnext.php', { id: TEAM_ID }).then((r) => (r.events ?? []) as any[]),
+      request('eventslast.php', { id: cfg.teamId }).then((r) => (r.results ?? r.events ?? []) as any[]),
+      request('eventsnext.php', { id: cfg.teamId }).then((r) => (r.events ?? []) as any[]),
     ].map((p) => p.catch(() => [] as any[])),
   )
 
@@ -228,9 +253,15 @@ export async function fetchSeasonFixtures(
   // Rolling events (all competitions incl. friendlies) within the season window.
   const [from, to] = seasonRange(season)
   for (const raw of rollingRaw)
-    for (const x of raw) {
-      const f = toFixture(x)
-      if (byId.has(f.id) || (f.home.id !== team && f.away.id !== team)) continue
+    for (const f of toFixtures(raw)) {
+      if (f.home.id !== team && f.away.id !== team) continue
+      // The rolling lists pick up a final score sooner than the season list
+      // does, so a finished copy replaces a still-"upcoming" one.
+      const known = byId.get(f.id)
+      if (known) {
+        if (known.status !== 'finished' && f.status === 'finished') byId.set(f.id, f)
+        continue
+      }
       const t = +new Date(f.date)
       if (t >= from && t <= to) byId.set(f.id, f)
     }
@@ -248,9 +279,18 @@ export async function fetchSeasonFixtures(
 
 // Builds a standings table from a set of finished matches. Used where
 // TheSportsDB doesn't supply an official table (UEFA's Swiss-format single
-// table) — real results, but tiebreakers are simplified (points → goal
-// difference → goals scored) rather than UEFA's full tiebreak rules.
-function computeStandingsFromFixtures(fixtures: Fixture[]): Standing[] {
+// table, and every basketball table) — real results, but tiebreakers are
+// simplified (points → goal difference → goals scored) rather than each
+// competition's full tiebreak rules.
+//
+// Basketball has no draws and ranks on wins, so there a win is worth one
+// "point" and `points` is simply the win count; ties then go to fewer losses
+// (which only matters while teams have played different numbers of games).
+function computeStandingsFromFixtures(
+  fixtures: Fixture[],
+  scoring: SportConfig['scoring'] = 'football',
+): Standing[] {
+  const winPoints = scoring === 'basketball' ? 1 : 3
   interface Row {
     team: Team
     played: number
@@ -288,13 +328,13 @@ function computeStandingsFromFixtures(fixtures: Fixture[]): Standing[] {
     if (f.homeScore > f.awayScore) {
       home.won++
       away.lost++
-      home.points += 3
+      home.points += winPoints
       home.history.push({ at, result: 'W' })
       away.history.push({ at, result: 'L' })
     } else if (f.homeScore < f.awayScore) {
       away.won++
       home.lost++
-      away.points += 3
+      away.points += winPoints
       home.history.push({ at, result: 'L' })
       away.history.push({ at, result: 'W' })
     } else {
@@ -315,7 +355,13 @@ function computeStandingsFromFixtures(fixtures: Fixture[]): Standing[] {
       .join('') || undefined
 
   return [...rows.values()]
-    .sort((a, b) => b.points - a.points || b.gf - b.ga - (a.gf - a.ga) || b.gf - a.gf)
+    .sort(
+      (a, b) =>
+        b.points - a.points ||
+        (scoring === 'basketball' ? a.lost - b.lost : 0) ||
+        b.gf - b.ga - (a.gf - a.ga) ||
+        b.gf - a.gf,
+    )
     .map(({ history, ...r }, i) => ({ rank: i + 1, ...r, form: formOf(history) }))
 }
 
@@ -331,6 +377,8 @@ export interface CompetitionStandings {
   standings: Standing[]
   knockout: KnockoutStage[]
   note?: string
+  /** Positions to highlight in the table, and the translation key saying why. */
+  topZone?: Competition['topZone']
   /**
    * Every match in this competition this season, not just Fenerbahçe's — the
    * same array already fetched to build the table, shared by reference so
@@ -343,8 +391,6 @@ export interface CompetitionStandings {
 // instead of groups — a standalone table is only meaningful from here on.
 const EURO_SINGLE_TABLE_FROM_YEAR = 2024
 
-const TURKISH_CUP_ID = 4960
-
 // eventsseason returns every stage of the competition together — qualifying
 // rounds, the 8-match Swiss league phase, and the knockout rounds — all in one
 // list. TheSportsDB codes the league-phase matchdays as intRound 1-8; every
@@ -355,16 +401,36 @@ function isLeaguePhase(f: Fixture): boolean {
   return Number.isFinite(round) && round >= 1 && round <= 8
 }
 
+// Basketball leagues number their regular season 1-30 (BSL) or 1-38
+// (EuroLeague) and give every postseason stage a code of 125 or more, the same
+// scheme the football knockouts use. Football's domestic league never reaches
+// 100, so for it this is simply every match.
+function isRegularSeason(f: Fixture): boolean {
+  return !(Number(f.round) >= 100)
+}
+
 // Maps TheSportsDB's knockout round codes to a human stage name. Verified
 // live across both the pre-2024 group-stage era and the post-2024 Swiss
 // format — the codes for the business end (Ro16 onward) are stable across
 // both, but the play-off round before it uses a different code per era
 // (160 pre-2024, 32 post-2024), so both are mapped defensively.
+// 170 and 180 only appear in basketball: the EuroLeague play-in's two rounds.
 // A round resolves to a translation id plus an optional number, rather than to
 // finished English text — the data layer has no access to the active language,
 // so the UI does the wording (see lib/useRoundLabel).
 export interface RoundRef {
-  id: 'matchday' | 'round' | 'qualifying' | 'playoff' | 'r16' | 'quarter' | 'semi' | 'final' | 'knockout'
+  id:
+    | 'matchday'
+    | 'round'
+    | 'qualifying'
+    | 'playoff'
+    | 'playin'
+    | 'playoffs'
+    | 'r16'
+    | 'quarter'
+    | 'semi'
+    | 'final'
+    | 'knockout'
   n?: string
 }
 
@@ -375,13 +441,15 @@ const KNOCKOUT_STAGE_IDS: Record<string, RoundRef['id']> = {
   '16': 'r16',
   '125': 'quarter',
   '150': 'semi',
+  '170': 'playin',
+  '180': 'playin',
   '200': 'final',
 }
 
 // Resolves a fixture's round code into a human label appropriate to its
 // competition: the Swiss-format league-phase matchday for UEFA competitions'
-// rounds 1-8, a named knockout stage for UEFA/Turkish Cup knockout rounds, or
-// a literal round number for anything else (domestic league, friendlies).
+// rounds 1-8, a named knockout stage for cup and postseason rounds, or a
+// literal round number for anything else (league rounds, friendlies).
 export function roundRef(fixture: Fixture): RoundRef | undefined {
   const round = fixture.round
   // '0' consistently means "not set" in this data (seen on friendlies and on
@@ -398,6 +466,13 @@ export function roundRef(fixture: Fixture): RoundRef | undefined {
     if (KNOCKOUT_STAGE_IDS[round]) return { id: KNOCKOUT_STAGE_IDS[round] }
     if (/^\d+$/.test(round)) return { id: 'round', n: round }
     return { id: 'knockout' }
+  }
+
+  // Basketball postseason. The EuroLeague's best-of-five round before the
+  // Final Four is called "the Playoffs" rather than a quarter-final.
+  if (Number(round) >= 100) {
+    if (round === '125' && /euroleague/i.test(fixture.competition)) return { id: 'playoffs' }
+    return { id: KNOCKOUT_STAGE_IDS[round] ?? 'knockout' }
   }
 
   return { id: 'round', n: round }
@@ -424,48 +499,52 @@ function buildKnockoutStages(fixtures: Fixture[]): KnockoutStage[] {
 }
 
 // One entry per competition Fenerbahçe actually played in the given season:
-// the official Süper Lig table, a computed table for post-2024 UEFA
-// competitions, or a short explanatory note where no table is possible
-// (Turkish Cup is always a knockout; pre-2024 UEFA group stages can't be
-// reconstructed from fixtures alone) — paired in both cases with Fenerbahçe's
-// actual knockout-stage results, since those are real regardless of format era.
+// - league: the domestic table (official where published, otherwise computed)
+//   plus any postseason run — basketball's playoffs;
+// - cup: Fenerbahçe's knockout run, since there's no table;
+// - uefa: a computed table for the post-2024 Swiss format, or a short note
+//   where none is possible (pre-2024 group stages can't be reconstructed from
+//   fixtures alone) — paired with Fenerbahçe's actual knockout results, since
+//   those are real regardless of format era.
 export async function fetchCompetitionTables(
+  cfg: SportConfig,
   season: string = SEASON,
   eventsByCompetition?: Map<number, Fixture[]>,
 ): Promise<CompetitionStandings[]> {
-  const team = String(TEAM_ID)
-  const events = eventsByCompetition ?? (await fetchCompetitionEvents(season))
+  const team = String(cfg.teamId)
+  const events = eventsByCompetition ?? (await fetchCompetitionEvents(cfg, season))
   const seasonStartYear = parseInt(season, 10)
   const out: CompetitionStandings[] = []
 
-  for (const { id, name } of COMPETITIONS) {
+  for (const { id, name, format, topZone } of cfg.competitions) {
     const list = events.get(id) ?? []
     const own = list.filter((f) => f.home.id === team || f.away.id === team)
     if (!own.length) continue // Fenerbahçe didn't play this one this season
 
-    if (id === LEAGUE_ID) {
-      // Reuses the season's events we already have rather than refetching them.
-      const table = await fetchLeagueTable(season, list)
-      out.push({
-        competitionId: id,
-        competitionName: name,
-        source: table.source,
-        standings: table.standings,
-        knockout: [],
-        events: list,
-        note: table.note,
-      })
+    const base = { competitionId: id, competitionName: name, events: list, topZone }
+
+    if (format === 'league') {
+      const regular = list.filter(isRegularSeason)
+      const knockout = buildKnockoutStages(own.filter((f) => !isRegularSeason(f)))
+      const table =
+        id === cfg.leagueId
+          ? // Reuses the season's events we already have rather than refetching them.
+            await fetchLeagueTable(cfg, season, regular)
+          : {
+              standings: computeStandingsFromFixtures(regular, cfg.scoring),
+              source: 'computed' as const,
+              note: BASKETBALL_COMPUTED_NOTE,
+            }
+      out.push({ ...base, source: table.source, standings: table.standings, knockout, note: table.note })
       continue
     }
 
-    if (id === TURKISH_CUP_ID) {
+    if (format === 'cup') {
       out.push({
-        competitionId: id,
-        competitionName: name,
+        ...base,
         source: 'unavailable',
         standings: [],
         knockout: buildKnockoutStages(own),
-        events: list,
         note: 'Knockout competition — there is no league table.',
       })
       continue
@@ -475,22 +554,18 @@ export async function fetchCompetitionTables(
 
     if (Number.isFinite(seasonStartYear) && seasonStartYear >= EURO_SINGLE_TABLE_FROM_YEAR) {
       out.push({
-        competitionId: id,
-        competitionName: name,
+        ...base,
         source: 'computed',
-        standings: computeStandingsFromFixtures(list.filter(isLeaguePhase)),
+        standings: computeStandingsFromFixtures(list.filter(isLeaguePhase), cfg.scoring),
         knockout,
-        events: list,
         note: 'Computed from match results — not supplied by the data source. Tiebreakers are simplified (points, then goal difference, then goals scored) and may differ slightly from the official UEFA table.',
       })
     } else {
       out.push({
-        competitionId: id,
-        competitionName: name,
+        ...base,
         source: 'unavailable',
         standings: [],
         knockout,
-        events: list,
         note: 'Group-stage era — a single table isn’t available from this data source.',
       })
     }
@@ -502,7 +577,9 @@ export async function fetchCompetitionTables(
 // ---- Head-to-head --------------------------------------------------------
 // The fixture archive for these competitions only reaches back to about
 // 2018-19 — earlier seasons return nothing at all — so there's no point
-// spending requests on them.
+// spending requests on them. (The basketball league goes back a little
+// further, but the EuroLeague doesn't, so one cut-off keeps the coverage note
+// honest for both.)
 const ARCHIVE_START_YEAR = 2018
 
 export function archivedSeasons(from: string = SEASON): string[] {
@@ -518,10 +595,11 @@ export function archivedSeasons(from: string = SEASON): string[] {
 // the proxy, and a season that fails resolves to nothing rather than sinking
 // the whole record.
 export async function fetchHeadToHead(
+  cfg: SportConfig,
   competitionId: number,
   opponentId: string,
 ): Promise<{ fixtures: Fixture[]; seasons: string[] }> {
-  const team = String(TEAM_ID)
+  const team = String(cfg.teamId)
   const seasons = archivedSeasons()
   const lists = await Promise.all(seasons.map((s) => fetchSeasonEvents(competitionId, s)))
 
@@ -564,7 +642,7 @@ const isCoachingStaff = (p?: string): boolean => {
   return s.includes('coach') || s.includes('manager')
 }
 
-const mapPosition = (p?: string): Position => {
+const mapFootballPosition = (p?: string): Position => {
   const s = (p ?? '').toLowerCase()
   if (s.includes('keeper') || s.includes('goal')) return 'Goalkeeper'
   // Check midfield first: "Defensive Midfield" contains "defen" but is a midfielder.
@@ -573,6 +651,36 @@ const mapPosition = (p?: string): Position => {
   if (s.includes('forward') || s.includes('wing') || s.includes('strik') || s.includes('attack'))
     return 'Forward'
   return 'Midfielder'
+}
+
+// Basketball rosters list five positions (Point Guard, Shooting Guard, Small
+// Forward, Power Forward, Center); the squad filters group them into three.
+// Hybrid labels like "Guard-Forward" take whichever comes first.
+const mapBasketballPosition = (p?: string): BasketballPosition => {
+  const s = (p ?? '').toLowerCase()
+  const at = (word: string) => {
+    const i = s.indexOf(word)
+    return i < 0 ? Infinity : i
+  }
+  const order: [BasketballPosition, number][] = [
+    ['Guard', at('guard')],
+    ['Forward', at('forward')],
+    ['Center', Math.min(at('center'), at('centre'))],
+  ]
+  const [first] = order.sort((a, b) => a[1] - b[1])
+  return first[1] === Infinity ? 'Forward' : first[0]
+}
+
+// Heights arrive in whatever format the contributor typed — "191 cm",
+// "1.90 m (6 ft 3 in)", "6 ft 6 in (1.98 m)" — and the basketball roster mixes
+// all three. Wherever there's a metric figure, show it the one way.
+function metricHeight(raw?: string): string | undefined {
+  if (!raw) return undefined
+  const cm = raw.match(/(\d{3})\s*cm/i)
+  if (cm) return `${cm[1]} cm`
+  const m = raw.match(/(\d[.,]\d{1,2})\s*m\b/i)
+  if (m) return `${Math.round(parseFloat(m[1].replace(',', '.')) * 100)} cm`
+  return raw
 }
 
 function ageFrom(dateBorn?: string): number {
@@ -586,8 +694,9 @@ function ageFrom(dateBorn?: string): number {
   return age > 0 ? age : 0
 }
 
-export async function fetchPlayers(): Promise<Player[]> {
-  const { player } = await request('lookup_all_players.php', { id: TEAM_ID })
+export async function fetchPlayers(cfg: SportConfig): Promise<Player[]> {
+  const { player } = await request('lookup_all_players.php', { id: cfg.teamId })
+  const mapPosition = cfg.sport === 'basketball' ? mapBasketballPosition : mapFootballPosition
   const roster: any[] = (player ?? []).filter((p: any) => !isCoachingStaff(p.strPosition))
   return roster.map((p) => ({
     id: String(p.idPlayer),
@@ -598,7 +707,7 @@ export async function fetchPlayers(): Promise<Player[]> {
     age: ageFrom(p.dateBorn),
     photo: clean(p.strCutout) ?? clean(p.strThumb),
     foot: clean(p.strSide),
-    height: clean(p.strHeight),
+    height: metricHeight(clean(p.strHeight)),
     weight: clean(p.strWeight),
     birthplace: clean(p.strBirthLocation),
     signing: clean(p.strSigning),
@@ -612,7 +721,7 @@ export async function fetchPlayers(): Promise<Player[]> {
 // rather than three near-identical rows. lookupcontracts is deliberately not
 // used: it returns a single row that duplicates the former-teams data with an
 // empty wage field, so it isn't worth a third request.
-export async function fetchPlayerCareer(playerId: string): Promise<PlayerCareer> {
+export async function fetchPlayerCareer(cfg: SportConfig, playerId: string): Promise<PlayerCareer> {
   const [honoursRes, formerRes] = await Promise.allSettled([
     request('lookuphonours.php', { id: playerId }),
     request('lookupformerteams.php', { id: playerId }),
@@ -645,7 +754,9 @@ export async function fetchPlayerCareer(playerId: string): Promise<PlayerCareer>
       joined: clean(f.strJoined),
       departed: clean(f.strDeparted),
       appearances: f.intAppearances != null ? num(f.intAppearances) : undefined,
-      goals: f.intGoals != null ? num(f.intGoals) : undefined,
+      // A goal tally means nothing for a basketball career, so it's dropped
+      // there rather than shown as a column of zeros.
+      goals: cfg.sport === 'football' && f.intGoals != null ? num(f.intGoals) : undefined,
     }))
     .filter((s) => s.team)
     // Most recent spell first.
@@ -655,8 +766,8 @@ export async function fetchPlayerCareer(playerId: string): Promise<PlayerCareer>
 }
 
 // ---- Club profile -------------------------------------------------------
-export async function fetchClub(): Promise<ClubProfile> {
-  const { teams } = await request('lookupteam.php', { id: TEAM_ID })
+export async function fetchClub(cfg: SportConfig): Promise<ClubProfile> {
+  const { teams } = await request('lookupteam.php', { id: cfg.teamId })
   const t = teams?.[0]
   if (!t) throw new Error('lookupteam: no team returned')
 
@@ -687,8 +798,8 @@ export async function fetchClub(): Promise<ClubProfile> {
 }
 
 // ---- Kits / jerseys -----------------------------------------------------
-export async function fetchKits(): Promise<Kit[]> {
-  const { equipment } = await request('lookupequipment.php', { id: TEAM_ID })
+export async function fetchKits(cfg: SportConfig): Promise<Kit[]> {
+  const { equipment } = await request('lookupequipment.php', { id: cfg.teamId })
   const rows: any[] = equipment ?? []
   return rows
     .map((e) => ({

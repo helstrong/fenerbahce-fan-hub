@@ -1,8 +1,8 @@
 # Fenerbahçe Fan Hub
 
 A responsive web app for Fenerbahçe SK fans to track results, fixtures, the league
-table, squad and club profile — all in one place, in club colours (navy `#00285E`
-& yellow `#FFED00`).
+table, squad and club profile — for both the football team and Fenerbahçe Beko
+basketball — all in one place, in club colours (navy `#00285E` & yellow `#FFED00`).
 
 Built with **React + Vite + TypeScript + Tailwind CSS**.
 
@@ -13,6 +13,7 @@ Built with **React + Vite + TypeScript + Tailwind CSS**.
 
 ## Features
 
+- **Football ⇄ basketball switch** — a sliding toggle in the header swaps every screen between Fenerbahçe football and Fenerbahçe Beko basketball (Basketbol Süper Ligi, EuroLeague, Turkish Cup). It keeps you on the tab you're on, so only the content changes; the choice is remembered
 - **Home dashboard** — league position, last result, next match, mini table (with crests), Fenerbahçe's last-5 form & record, and a latest-news preview
 - **Fixtures & Results** — upcoming/results tabs with club crests, round, venue and win/draw/loss markers
 - **Tables** — a table per competition Fenerbahçe plays each season (Süper Lig, Turkish Cup, UEFA competitions), with crests, a last-5 form guide, and knockout-stage results where there's no single table
@@ -123,9 +124,9 @@ and filtered to a small curated allowlist of trusted outlets before being served
   support contract — it could change or be blocked by Google without notice. This is
   the standard low-risk pattern for small, non-commercial news aggregation; it is not
   a guarantee of uptime. Responses are cached for 15 minutes.
-- Results are scoped to football (the search query includes "football") since
-  Fenerbahçe is a multi-sport club and an unscoped search pulls in basketball/volleyball
-  coverage too.
+- There is one feed per sport (`/api/news?sport=football|basketball`), each query
+  naming its sport so the club's other sections stay out. Basketball's allowlist adds
+  EuroLeague, FIBA, BasketNews and Eurohoops, since general outlets rarely cover it.
 - Not affiliated with or endorsed by Fenerbahçe SK; article content belongs to its
   original publishers.
 
@@ -200,6 +201,13 @@ temporarily relax the `robots.txt` block so crawlers can see the `noindex` signa
 
 ## Changelog
 
+- **2026-11-17** — Football ⇄ basketball switch: every screen now works for Fenerbahçe
+  Beko basketball as well (TheSportsDB team `136071`). The provider publishes no
+  basketball tables, so BSL and EuroLeague standings are computed from regular-season
+  results and ranked on wins; playoffs show as a knockout run. Basketball needs the
+  premium key — the free key caps season lists at 15 games. Also fixes "Last result"
+  lagging a finished game until `eventslast` caught up, and drops cancelled games
+  from fixture lists.
 - **2026-08-30** — Installable as an app (PWA): manifest, icon set and service worker,
   so the site adds to a phone home screen with no app store involved. Additive — a
   browser tab is unchanged, and the service worker is off in dev. `sw.js` and friends

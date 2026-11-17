@@ -1,6 +1,9 @@
 import { createContext, useCallback, useContext, useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
 import { loadAll } from './api'
+import { useSport } from './SportContext'
+import { SPORTS } from './sports'
+import type { Sport } from './sports'
 import type { AppData } from './types'
 
 type Status = 'loading' | 'ready' | 'error'
@@ -18,22 +21,32 @@ interface DataContextValue {
 
 const DataContext = createContext<DataContextValue | null>(null)
 
-export function DataProvider({ children }: { children: ReactNode }) {
-  const [state, setState] = useState<State>({ status: 'loading', data: null })
+const LOADING: State = { status: 'loading', data: null }
 
-  const load = useCallback((force: boolean) => {
-    setState((prev) => ({ ...prev, status: 'loading' }))
-    loadAll(force)
-      .then((data) => setState({ status: 'ready', data }))
-      .catch((e) => setState({ status: 'error', data: null, error: String(e?.message ?? e) }))
+// Holds one loaded AppData per sport. Each sport loads the first time it's
+// selected and is then kept, so switching back is instant. Results are stored
+// under the sport they were requested for, so a slow football response that
+// lands after the user has switched to basketball can't overwrite it.
+export function DataProvider({ children }: { children: ReactNode }) {
+  const { sport } = useSport()
+  const [bySport, setBySport] = useState<Partial<Record<Sport, State>>>({})
+
+  const load = useCallback((s: Sport, force: boolean) => {
+    setBySport((prev) => ({ ...prev, [s]: { ...(prev[s] ?? LOADING), status: 'loading' } }))
+    loadAll(SPORTS[s], force)
+      .then((data) => setBySport((prev) => ({ ...prev, [s]: { status: 'ready', data } })))
+      .catch((e) =>
+        setBySport((prev) => ({ ...prev, [s]: { status: 'error', data: null, error: String(e?.message ?? e) } })),
+      )
   }, [])
 
+  const loaded = !!bySport[sport]
   useEffect(() => {
-    load(false)
-  }, [load])
+    if (!loaded) load(sport, false)
+  }, [sport, loaded, load])
 
   return (
-    <DataContext.Provider value={{ state, refresh: () => load(true) }}>
+    <DataContext.Provider value={{ state: bySport[sport] ?? LOADING, refresh: () => load(sport, true) }}>
       {children}
     </DataContext.Provider>
   )

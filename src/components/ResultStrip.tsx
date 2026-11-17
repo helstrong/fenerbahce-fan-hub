@@ -18,12 +18,15 @@ const scoreline = (p: ReturnType<typeof perspective>) =>
 export function ResultStrip({ fixture }: { fixture: Fixture }) {
   const { t, locale } = useI18n()
   const p = perspective(fixture)
+  // Basketball scores run to three digits; at football's size "115–81" would
+  // leave the opponent's name almost no room.
+  const long = (p.ours ?? 0) >= 100 || (p.theirs ?? 0) >= 100
 
   return (
     <div
       className={`flex items-center gap-3.5 rounded-2xl border border-white/10 border-l-[3px] bg-fener-navy px-4 py-3.5 ${edge(p.result)}`}
     >
-      <div className="shrink-0 font-display text-[44px] font-bold leading-[0.85]">
+      <div className={`shrink-0 font-display font-bold leading-[0.85] ${long ? 'text-[34px]' : 'text-[44px]'}`}>
         {p.ours != null && p.theirs != null ? (
           <>
             {p.ours}
